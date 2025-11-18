@@ -18,11 +18,17 @@ import { z } from "zod";
 
 /**
  * Register search contracts tool with the MCP server
+ *
+ * @param server MCP server instance
+ * @param env Environment variables
+ * @param cache Optional cache manager
+ * @param userApiKey Optional user-specific API key (from x-tango-api-key header)
  */
 export function registerSearchContractsTool(
 	server: McpServer,
 	env: Env,
 	cache?: CacheManager,
+	userApiKey?: string,
 ): void {
 	server.tool(
 		"search_tango_contracts",
@@ -190,8 +196,8 @@ export function registerSearchContractsTool(
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
-				// Get API key from environment
-				const apiKey = env.TANGO_API_KEY;
+				// Get API key: prefer user-specific key, fall back to environment variable
+				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
 						tool: "search_tango_contracts",
@@ -205,7 +211,8 @@ export function registerSearchContractsTool(
 										error: "Tango API key required",
 										error_code: "MISSING_API_KEY",
 										suggestion:
-											"Ensure TANGO_API_KEY environment variable is set",
+											"Configure x-tango-api-key header in Claude Desktop config or set TANGO_API_KEY environment variable",
+										documentation: "https://tango.makegov.com for API key",
 										recoverable: true,
 									},
 									null,

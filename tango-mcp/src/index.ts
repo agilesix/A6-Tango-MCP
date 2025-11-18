@@ -25,9 +25,28 @@ import { createCacheManager } from "./cache/kv-cache.js";
 // </mcp-bindings:imports>
 
 /**
- * Main MCP Agent class
+ * Props interface for per-user configuration
  */
-export class MCPServerAgent extends McpAgent<Env> {
+export interface MCPProps extends Record<string, unknown> {
+	/** User's Tango API key from x-tango-api-key header */
+	tangoApiKey?: string;
+}
+
+/**
+ * Main MCP Agent class
+ *
+ * Supports per-user API keys via the tangoApiKey prop.
+ * Users configure their API key in Claude Desktop config:
+ * {
+ *   "mcpServers": {
+ *     "tango-mcp": {
+ *       "url": "https://your-worker.workers.dev/sse",
+ *       "headers": { "x-tango-api-key": "YOUR_KEY_HERE" }
+ *     }
+ *   }
+ * }
+ */
+export class MCPServerAgent extends McpAgent<Env, {}, MCPProps> {
 	server = new McpServer({
 		name: "tango-mcp",
 		version: "1.0.0",
@@ -36,23 +55,25 @@ export class MCPServerAgent extends McpAgent<Env> {
 	async init() {
 		// Access env through the agent context
 		// The McpAgent framework provides env through 'this' context during agent execution
-		// For now, we'll pass a temporary env object that will be replaced at runtime
-		const env = (this as any).env || ({} as Env);
+		const env = (this as any).env || ({} as Env & { USER_TANGO_API_KEY?: string });
+
+		// Get user's API key from augmented env (extracted from x-tango-api-key header)
+		const userApiKey = (env as any).USER_TANGO_API_KEY;
 
 		// Initialize cache manager
 		const cache = env.TANGO_CACHE ? createCacheManager(env) : undefined;
 
-		// Register all tools
+		// Register all tools with user's API key
 		registerHealthTool(this.server);
-		registerSearchContractsTool(this.server, env, cache);
-		registerSearchGrantsTool(this.server, env, cache);
-		registerGetVendorProfileTool(this.server, env, cache);
-		registerSearchOpportunitiesTool(this.server, env, cache);
-		registerGetSpendingSummaryTool(this.server, env, cache);
-		registerGetContractDetailTool(this.server, env, cache);
-		registerGetGrantDetailTool(this.server, env, cache);
-		registerGetOpportunityDetailTool(this.server, env, cache);
-		registerGetAgencyAnalyticsTool(this.server, env, cache);
+		registerSearchContractsTool(this.server, env, cache, userApiKey);
+		registerSearchGrantsTool(this.server, env, cache, userApiKey);
+		registerGetVendorProfileTool(this.server, env, cache, userApiKey);
+		registerSearchOpportunitiesTool(this.server, env, cache, userApiKey);
+		registerGetSpendingSummaryTool(this.server, env, cache, userApiKey);
+		registerGetContractDetailTool(this.server, env, cache, userApiKey);
+		registerGetGrantDetailTool(this.server, env, cache, userApiKey);
+		registerGetOpportunityDetailTool(this.server, env, cache, userApiKey);
+		registerGetAgencyAnalyticsTool(this.server, env, cache, userApiKey);
 	}
 }
 
@@ -142,7 +163,16 @@ export default {
 
 		// Route: SSE/MCP endpoint
 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
-			return MCPServerAgent.serveSSE('/sse').fetch(request, env, ctx);
+			// Extract user's Tango API key from request headers and store in env
+			const userTangoApiKey = request.headers.get("x-tango-api-key");
+
+			// Augment env with user API key for this request
+			const envWithUserKey = {
+				...env,
+				USER_TANGO_API_KEY: userTangoApiKey || undefined,
+			} as Env & { USER_TANGO_API_KEY?: string };
+
+			return MCPServerAgent.serveSSE('/sse').fetch(request, envWithUserKey, ctx);
 		}
 
 		// Route: Standard MCP endpoint (JSON-RPC)

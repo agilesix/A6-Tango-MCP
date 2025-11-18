@@ -140,7 +140,8 @@ Generate aggregated spending analytics from federal contracts and grants.
 - Node.js 18+ or compatible runtime
 - Cloudflare Workers account
 - Wrangler CLI: `npm install -g wrangler`
-- Tango API key ([Get one here](https://www.makegov.com))
+- Tango API key ([Get one free at tango.makegov.com](https://tango.makegov.com))
+- Claude Desktop or another MCP-compatible client
 
 ### Setup
 
@@ -175,11 +176,15 @@ Generate aggregated spending analytics from federal contracts and grants.
    TANGO_API_BASE_URL = "https://tango.makegov.com/api"
    ```
 
-5. **Set API key secret:**
+5. **Set API key secret (optional):**
+
+   If you want to use a shared API key for all users:
    ```bash
    wrangler secret put TANGO_API_KEY
    # Enter your Tango API key when prompted
    ```
+
+   **OR** skip this step and have each user provide their own API key via Claude Desktop configuration (recommended).
 
 ## Development
 
@@ -268,15 +273,115 @@ wrangler tail
 
 View metrics in the Cloudflare dashboard under Workers > Analytics.
 
+## Using with Claude Desktop
+
+The Tango MCP Server supports **per-user API keys**, allowing each user to configure their own Tango API key in Claude Desktop. This ensures each user gets their own API quota (100 requests/day on the free tier).
+
+### Configuration Steps
+
+1. **Get your Tango API key:**
+   - Visit [https://tango.makegov.com](https://tango.makegov.com)
+   - Sign up for a free account
+   - Copy your API key from the dashboard
+
+2. **Open Claude Desktop configuration:**
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+   Or use Claude Desktop:
+   - Open Settings
+   - Navigate to "Developer" tab
+   - Click "Edit Config"
+
+3. **Add the Tango MCP Server:**
+   ```json
+   {
+     "mcpServers": {
+       "tango-mcp": {
+         "url": "https://your-worker-name.your-account.workers.dev/sse",
+         "headers": {
+           "x-tango-api-key": "YOUR_TANGO_API_KEY_HERE"
+         }
+       }
+     }
+   }
+   ```
+
+   Replace:
+   - `your-worker-name.your-account.workers.dev` with your actual Cloudflare Worker URL
+   - `YOUR_TANGO_API_KEY_HERE` with your actual Tango API key
+
+4. **Restart Claude Desktop**
+   - Completely quit Claude Desktop (not just close the window)
+   - Reopen Claude Desktop
+   - The Tango MCP Server should now be available
+
+### Verify Connection
+
+In Claude Desktop, ask:
+```
+Search for IT service contracts awarded by the Department of Defense
+```
+
+Claude should use the `search_tango_contracts` tool to fetch results using your API key.
+
+### Alternative: Shared API Key
+
+If you prefer to deploy with a single shared API key (not recommended for production):
+
+```bash
+wrangler secret put TANGO_API_KEY
+# Enter your Tango API key when prompted
+```
+
+Then users can connect without the `headers` configuration:
+```json
+{
+  "mcpServers": {
+    "tango-mcp": {
+      "url": "https://your-worker.workers.dev/sse"
+    }
+  }
+}
+```
+
+**Note**: With a shared key, all users share the same API quota.
+
 ## Configuration
 
 ### Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TANGO_API_KEY` | Yes | - | Tango API authentication key (secret) |
+| `TANGO_API_KEY` | No* | - | Tango API authentication key (secret). *Optional if users provide keys via `x-tango-api-key` header |
 | `TANGO_API_BASE_URL` | No | `https://tango.makegov.com/api` | Tango API base URL |
 | `TANGO_CACHE` | Yes | - | KV namespace binding for caching |
+
+### Per-User API Keys
+
+Users can provide their own API keys via the `x-tango-api-key` HTTP header. This is configured in Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "tango-mcp": {
+      "url": "https://your-worker.workers.dev/sse",
+      "headers": {
+        "x-tango-api-key": "user-specific-api-key"
+      }
+    }
+  }
+}
+```
+
+**Benefits of per-user API keys:**
+- Each user gets their own 100 requests/day quota
+- No shared rate limit concerns
+- Better security (users manage their own credentials)
+- Individual usage tracking
+
+**Fallback behavior:**
+If no `x-tango-api-key` header is provided, the server falls back to the `TANGO_API_KEY` environment variable.
 
 ### KV Namespace
 
@@ -389,7 +494,21 @@ All tools return responses in this format:
 ```
 Error: MISSING_API_KEY
 ```
-Solution: Set the API key secret:
+Solution: Either configure your personal API key in Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "tango-mcp": {
+      "url": "https://your-worker.workers.dev/sse",
+      "headers": {
+        "x-tango-api-key": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Or set a shared API key secret (not recommended):
 ```bash
 wrangler secret put TANGO_API_KEY
 ```

@@ -22,7 +22,8 @@ import { z } from "zod";
 export function registerSearchGrantsTool(
 	server: McpServer,
 	env: Env,
-	cache?: CacheManager
+	cache?: CacheManager,
+	userApiKey?: string
 ): void {
 	server.tool(
 		"search_tango_grants",
@@ -145,8 +146,8 @@ export function registerSearchGrantsTool(
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
-				// Get API key from environment
-				const apiKey = env.TANGO_API_KEY;
+				// Get API key from user or environment
+				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, { tool: "search_tango_grants" });
 					return {
@@ -158,7 +159,8 @@ export function registerSearchGrantsTool(
 										error: "Tango API key required",
 										error_code: "MISSING_API_KEY",
 										suggestion:
-											"Ensure TANGO_API_KEY environment variable is set",
+											"Configure x-tango-api-key header in Claude Desktop config or set TANGO_API_KEY environment variable",
+										documentation: "https://tango.makegov.com for API key",
 										recoverable: true,
 									},
 									null,
