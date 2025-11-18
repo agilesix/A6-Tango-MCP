@@ -25,7 +25,7 @@ export function registerGetVendorProfileTool(
 ): void {
 	server.tool(
 		"get_tango_vendor_profile",
-		"Retrieve comprehensive entity profile from SAM.gov data through Tango's unified API. Returns detailed vendor information including legal business name, DUNS, CAGE code, registration status, business types, physical/mailing addresses, points of contact, NAICS/PSC codes, certifications, and performance summary (total contracts/grants and values). Required parameter: vendor UEI (Unique Entity Identifier). Useful for vendor due diligence, capability assessment, and contact information lookup.",
+		"Retrieve comprehensive entity profile from SAM.gov data through Tango's unified API. Returns detailed vendor information including legal business name, DUNS, CAGE code, registration status, business types, physical/mailing addresses, points of contact, NAICS/PSC codes, certifications, performance summary (total contracts/grants and values), and federal_obligations (the PRIMARY vendor performance metric with active/total contract spending, subawards, and IDV counts). Required parameter: vendor UEI (Unique Entity Identifier). Useful for vendor due diligence, capability assessment, and contact information lookup.",
 		{
 			uei: z
 				.string()
