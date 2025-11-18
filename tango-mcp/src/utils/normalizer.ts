@@ -13,6 +13,7 @@
 import type {
   TangoContractResponse,
   TangoGrantResponse,
+  TangoGrantOpportunityResponse,
   TangoVendorResponse,
   TangoOpportunityResponse,
 } from "@/types/tango-api";
@@ -59,6 +60,7 @@ export interface NormalizedContract {
 
 /**
  * Normalized grant object with consistent field names
+ * @deprecated Use NormalizedGrantOpportunity instead
  */
 export interface NormalizedGrant {
   grant_id: string;
@@ -98,6 +100,96 @@ export interface NormalizedGrant {
     start: string | null;
     end: string | null;
   };
+}
+
+/**
+ * Normalized grant opportunity with consistent field names
+ */
+export interface NormalizedGrantOpportunity {
+  /** Internal grant ID and opportunity number */
+  grant_id: number | null;
+  opportunity_number: string;
+
+  /** Opportunity title and description */
+  title: string;
+  description: string | null;
+
+  /** Agency information */
+  agency: {
+    code: string | null;
+  };
+
+  /** Opportunity status */
+  status: {
+    code: string | null;
+    description: string | null;
+  };
+
+  /** Category information */
+  category: {
+    code: string | null;
+    description: string | null;
+  };
+
+  /** Important dates */
+  dates: {
+    posted: string | null;
+    response_deadline: string | null;
+    close: string | null;
+    archive: string | null;
+    estimated_start: string | null;
+    estimated_end: string | null;
+  };
+
+  /** CFDA numbers */
+  cfda_numbers: Array<{
+    number: string;
+    title: string;
+  }>;
+
+  /** Eligible applicant types */
+  applicant_types: Array<{
+    code: string;
+    description: string;
+  }>;
+  applicant_eligibility: string | null;
+
+  /** Funding categories */
+  funding_categories: Array<{
+    code: string;
+    description: string;
+  }>;
+  funding_category_description: string | null;
+
+  /** Funding instruments */
+  funding_instruments: Array<{
+    code: string;
+    description: string;
+  }>;
+
+  /** Funding details */
+  funding: {
+    ceiling: number | null;
+    floor: number | null;
+    estimated_total: number | null;
+    expected_awards: number | null;
+  };
+
+  /** Grantor contact */
+  contact: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+
+  /** Additional information */
+  additional_info: {
+    url: string | null;
+    text: string | null;
+  };
+
+  /** Last updated timestamp */
+  last_updated: string | null;
 }
 
 /**
@@ -263,6 +355,7 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
  * - Title: title, project_title, description
  * - Amount: award_amount, total_funding_amount
  *
+ * @deprecated Use normalizeGrantOpportunity instead
  * @param grant Raw Tango API grant response
  * @returns Normalized grant with consistent fields
  */
@@ -313,6 +406,135 @@ export function normalizeGrant(grant: TangoGrantResponse): NormalizedGrant {
       start: grant.period_start_date || null,
       end: grant.period_end_date || null,
     },
+  };
+}
+
+/**
+ * Normalize grant opportunity response to consistent structure
+ *
+ * Converts Grants.gov opportunity data from Tango API into a normalized format.
+ * Handles array fields, nested objects, and date formatting.
+ *
+ * @param opportunity Raw Tango API grant opportunity response
+ * @returns Normalized grant opportunity with consistent fields
+ */
+export function normalizeGrantOpportunity(
+  opportunity: TangoGrantOpportunityResponse,
+): NormalizedGrantOpportunity {
+  // ID and opportunity number
+  const grant_id = opportunity.grant_id ?? null;
+  const opportunity_number = opportunity.opportunity_number || "unknown";
+
+  // Title and description
+  const title = opportunity.title || "Untitled Opportunity";
+  const description = opportunity.description || null;
+
+  // Agency
+  const agency_code = opportunity.agency_code || null;
+
+  // Status
+  const status = {
+    code: opportunity.status?.code || null,
+    description: opportunity.status?.description || null,
+  };
+
+  // Category
+  const category = {
+    code: opportunity.category?.code || null,
+    description: opportunity.category?.description || null,
+  };
+
+  // Important dates - normalize to YYYY-MM-DD format
+  const dates = {
+    posted: normalizeDate(opportunity.important_dates?.posted_date),
+    response_deadline: normalizeDate(opportunity.important_dates?.response_date),
+    close: normalizeDate(opportunity.important_dates?.close_date),
+    archive: normalizeDate(opportunity.important_dates?.archive_date),
+    estimated_start: normalizeDate(opportunity.important_dates?.estimated_project_start_date),
+    estimated_end: normalizeDate(opportunity.important_dates?.estimated_project_end_date),
+  };
+
+  // CFDA numbers - normalize array
+  const cfda_numbers = Array.isArray(opportunity.cfda_numbers)
+    ? opportunity.cfda_numbers.map(cfda => ({
+        number: cfda.number || "",
+        title: cfda.title || "",
+      }))
+    : [];
+
+  // Applicant types - normalize array
+  const applicant_types = Array.isArray(opportunity.applicant_types)
+    ? opportunity.applicant_types.map(type => ({
+        code: type.code || "",
+        description: type.description || "",
+      }))
+    : [];
+
+  const applicant_eligibility = opportunity.applicant_eligibility_description || null;
+
+  // Funding categories - normalize array
+  const funding_categories = Array.isArray(opportunity.funding_categories)
+    ? opportunity.funding_categories.map(cat => ({
+        code: cat.code || "",
+        description: cat.description || "",
+      }))
+    : [];
+
+  const funding_category_description = opportunity.funding_activity_category_description || null;
+
+  // Funding instruments - normalize array
+  const funding_instruments = Array.isArray(opportunity.funding_instruments)
+    ? opportunity.funding_instruments.map(inst => ({
+        code: inst.code || "",
+        description: inst.description || "",
+      }))
+    : [];
+
+  // Funding details - normalize amounts
+  const funding = {
+    ceiling: opportunity.funding_details?.award_ceiling ?? null,
+    floor: opportunity.funding_details?.award_floor ?? null,
+    estimated_total: opportunity.funding_details?.estimated_total_funding ?? null,
+    expected_awards: opportunity.funding_details?.expected_number_of_awards ?? null,
+  };
+
+  // Contact information
+  const contact = {
+    name: opportunity.grantor_contact?.name || null,
+    phone: opportunity.grantor_contact?.phone || null,
+    email: opportunity.grantor_contact?.email || null,
+  };
+
+  // Additional information
+  const additional_info = {
+    url: opportunity.additional_info?.url || null,
+    text: opportunity.additional_info?.text || null,
+  };
+
+  // Last updated
+  const last_updated = opportunity.last_updated || null;
+
+  return {
+    grant_id,
+    opportunity_number,
+    title,
+    description,
+    agency: {
+      code: agency_code,
+    },
+    status,
+    category,
+    dates,
+    cfda_numbers,
+    applicant_types,
+    applicant_eligibility,
+    funding_categories,
+    funding_category_description,
+    funding_instruments,
+    funding,
+    contact,
+    additional_info,
+    last_updated,
   };
 }
 
