@@ -17,6 +17,7 @@ import type { Env } from "@/types/env";
 import type {
   TangoContractListResponse,
   TangoGrantListResponse,
+  TangoGrantOpportunityListResponse,
   TangoVendorResponse,
   TangoOpportunityListResponse,
 } from "@/types/tango-api";
@@ -81,17 +82,33 @@ export class TangoApiClient {
   }
 
   /**
-   * Search federal grants from USASpending
+   * Search grant opportunities from Grants.gov
    *
-   * @param params Query parameters for grant search
+   * Returns pre-award grant opportunities, NOT post-award USASpending data.
+   * These are opportunities available for application.
+   *
+   * Supported parameters:
+   * - search: Free-text search across titles and descriptions
+   * - agency: Agency abbreviation (e.g., "ED", "NSF")
+   * - cfda_number: CFDA number filter
+   * - posted_date_after/before: Posted date range
+   * - response_date_after/before: Response deadline range
+   * - applicant_types: Comma-separated applicant type codes
+   * - funding_categories: Comma-separated funding category codes
+   * - funding_instruments: Comma-separated instrument codes (G, CA, PC, etc.)
+   * - status: P (Posted) or F (Forecasted)
+   * - ordering: Sort field (e.g., "posted_date", "-response_date")
+   * - limit: Maximum results (default: 25, max: 100)
+   *
+   * @param params Query parameters for opportunity search
    * @param apiKey Tango API key
-   * @returns Grant search results
+   * @returns Grant opportunity search results
    */
   async searchGrants(
     params: Record<string, unknown>,
     apiKey: string,
-  ): Promise<ApiResponse<TangoGrantListResponse>> {
-    return this.get<TangoGrantListResponse>("/grants/", params, apiKey);
+  ): Promise<ApiResponse<TangoGrantOpportunityListResponse>> {
+    return this.get<TangoGrantOpportunityListResponse>("/grants/", params, apiKey);
   }
 
   /**
