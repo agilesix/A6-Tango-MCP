@@ -52,7 +52,7 @@ export interface MCPProps extends Record<string, unknown> {
  *   }
  * }
  */
-export class MCPServerAgent extends McpAgent<Env, {}, MCPProps> {
+export class MCPServerAgent extends McpAgent<Env, Record<string, never>, MCPProps> {
 	server = new McpServer({
 		name: "tango-mcp",
 		version: "1.0.0",
@@ -61,7 +61,7 @@ export class MCPServerAgent extends McpAgent<Env, {}, MCPProps> {
 	async init() {
 		// Access env and props through the agent context
 		// The McpAgent framework provides env and props through 'this' context during agent execution
-		const env = (this as any).env || ({} as Env);
+		const env = (this as unknown as { env?: Env }).env || ({} as Env);
 
 		// Get user's API key from props (extracted from x-tango-api-key header)
 		const userApiKey = this.props?.tangoApiKey;
@@ -153,7 +153,7 @@ export default {
 						ttl_seconds: 300,
 					};
 				}
-			} catch (error) {
+			} catch (_error) {
 				healthData.services.cache_kv = "error";
 				healthData.status = "degraded";
 			}

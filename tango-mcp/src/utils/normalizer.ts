@@ -1046,7 +1046,7 @@ export function normalizeOpportunity(
   // Description (truncate to 500 chars if too long)
   let description = opportunity.description || opportunity.summary || null;
   if (description && description.length > 500) {
-    description = description.substring(0, 497) + "...";
+    description = `${description.substring(0, 497)}...`;
   }
 
   // Office address

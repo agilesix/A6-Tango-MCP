@@ -23,6 +23,7 @@
 export function sanitizeString(value: string): string {
 	// Strip control characters (ASCII 0x00-0x1F and 0x7F-0x9F)
 	// But preserve common whitespace (space, tab, newline, carriage return)
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally checking for control characters
 	const stripped = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
 
 	// Trim leading/trailing whitespace
@@ -111,6 +112,7 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * hasControlCharacters("hello\x00world") // true
  */
 export function hasControlCharacters(value: string): boolean {
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally checking for control characters
 	return /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/.test(value);
 }
 

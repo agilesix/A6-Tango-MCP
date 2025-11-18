@@ -480,11 +480,13 @@ export class TangoApiClient {
 
       if (typeof value === "string") {
         // Strip control characters and trim
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally checking for control characters
         sanitized[key] = value.replace(/[\x00-\x1F\x7F]/g, "").trim();
       } else if (typeof value === "number" || typeof value === "boolean") {
         sanitized[key] = value;
       } else if (Array.isArray(value)) {
         sanitized[key] = value.map((item) =>
+          // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally checking for control characters
           typeof item === "string" ? item.replace(/[\x00-\x1F\x7F]/g, "").trim() : item,
         );
       } else if (typeof value === "object") {

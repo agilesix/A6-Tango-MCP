@@ -6,7 +6,6 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { GetSpendingSummaryArgs } from "@/types/tool-args";
 import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
@@ -14,6 +13,7 @@ import { normalizeContract } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
 import { z } from "zod";
+import { NAICS_DESCRIPTIONS } from "@/data/naics-codes";
 
 /**
  * Register get spending summary tool with the MCP server
@@ -155,7 +155,7 @@ export function registerGetSpendingSummaryTool(
 
 				// Perform client-side aggregation
 				const groupBy = sanitized.group_by || "vendor";
-				const aggregation = new Map<string, { total: number; count: number }>();
+				const aggregation = new Map<string, { label: string; total: number; count: number }>();
 
 				for (const contract of contracts) {
 					let key: string;
@@ -166,14 +166,15 @@ export function registerGetSpendingSummaryTool(
 							key = contract.agency.code || contract.agency.name || "unknown";
 							label = contract.agency.name || "Unknown Agency";
 							break;
-						case "vendor":
-							key = contract.vendor.uei || contract.vendor.name || "unknown";
-							label = contract.vendor.name || "Unknown Vendor";
-							break;
-						case "naics":
+						case "naics": {
 							key = contract.naics_code || "unknown";
-							label = `${contract.naics_code || "unknown"} - ${contract.naics_description || ""}`;
+							const naicsDesc =
+								contract.naics_description ||
+								NAICS_DESCRIPTIONS[key] ||
+								"";
+							label = `${contract.naics_code || "unknown"} - ${naicsDesc}`;
 							break;
+						}
 						case "psc":
 							key = contract.psc_code || "unknown";
 							label = `${contract.psc_code || "unknown"} - ${contract.psc_description || ""}`;
@@ -183,11 +184,13 @@ export function registerGetSpendingSummaryTool(
 							label = key;
 							break;
 						default:
+							// Default to vendor grouping
 							key = contract.vendor.uei || contract.vendor.name || "unknown";
 							label = contract.vendor.name || "Unknown Vendor";
+							break;
 					}
 
-					const existing = aggregation.get(key) || { total: 0, count: 0 };
+					const existing = aggregation.get(key) || { label, total: 0, count: 0 };
 					existing.total += contract.award_amount;
 					existing.count += 1;
 					aggregation.set(key, existing);
@@ -197,7 +200,7 @@ export function registerGetSpendingSummaryTool(
 				const breakdown = Array.from(aggregation.entries())
 					.map(([key, stats]) => ({
 						key,
-						label: key, // In a full implementation, we'd look up labels
+						label: stats.label,
 						total_obligated: stats.total,
 						contract_count: stats.count,
 					}))

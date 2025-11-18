@@ -301,7 +301,7 @@ export function registerBinaryResource(server: McpServer): void {
 			mimeType: "image/png",
 		},
 		async (uri) => {
-			const id = uri.pathname.replace("//", "");
+			const _id = uri.pathname.replace("//", "");
 
 			// In a real implementation, fetch from R2, KV, or external storage
 			// For example purposes, return a base64 encoded placeholder

@@ -14,6 +14,7 @@ import { normalizeContract } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
 import { z } from "zod";
+import { NAICS_DESCRIPTIONS } from "@/data/naics-codes";
 
 /**
  * Agency analytics result type
@@ -267,7 +268,10 @@ export function registerGetAgencyAnalyticsTool(
 				for (const contract of contracts) {
 					const code = contract.naics_code || "UNKNOWN";
 					const existing = naicsMap.get(code) || {
-						description: contract.naics_description || "Unknown Industry",
+						description:
+							contract.naics_description ||
+							NAICS_DESCRIPTIONS[code] ||
+							`NAICS ${code}`,
 						total: 0,
 						count: 0,
 					};

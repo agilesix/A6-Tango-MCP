@@ -6,7 +6,6 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { SearchContractsArgs } from "@/types/tool-args";
 import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
@@ -38,7 +37,7 @@ export function registerSearchContractsTool(
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across contract descriptions and titles. Example: 'IT services' or 'cloud computing'",
+					"Free-text search across contract descriptions and titles. Works best for: vendor names ('Lockheed Martin'), technology terms ('cloud computing', 'cybersecurity'), or service descriptions ('IT modernization'). For agency-specific searches, use 'awarding_agency' parameter instead (e.g., awarding_agency='Department of Defense' rather than query='VA digital services'). For industry searches, use 'naics_code' or 'psc_code' parameters. Multi-concept queries work better when combining free-text query with structured filters like awarding_agency, naics_code, or date ranges.",
 				),
 			vendor_name: z
 				.string()
