@@ -11,6 +11,7 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeVendor } from "@/utils/normalizer";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -38,8 +39,11 @@ export function registerGetVendorProfileTool(server: McpServer, env: Env): void 
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("get_tango_vendor_profile", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 

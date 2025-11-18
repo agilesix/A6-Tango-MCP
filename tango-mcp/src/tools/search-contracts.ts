@@ -11,6 +11,7 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeContract } from "@/utils/normalizer";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -88,14 +89,19 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				// Log tool invocation
+				logger.toolInvocation("search_tango_contracts", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
 				// Get API key from environment
 				const apiKey = env.TANGO_API_KEY;
 				if (!apiKey) {
+					logger.error("Missing API key", undefined, { tool: "search_tango_contracts" });
 					return {
 						content: [
 							{
@@ -135,11 +141,17 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 				params.limit = sanitized.limit || 10;
 
 				// Call Tango API
+				logger.info("Calling Tango API", { endpoint: "searchContracts", params });
 				const client = new TangoApiClient(env);
 				const response = await client.searchContracts(params, apiKey);
+				logger.apiCall("/contracts", "GET", response.status || 200, Date.now() - startTime);
 
 				// Handle API error
 				if (!response.success || !response.data) {
+					logger.warn("API request failed", {
+						error: response.error,
+						status: response.status
+					});
 					return {
 						content: [
 							{
@@ -167,6 +179,11 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 				);
 
 				// Build response envelope
+				logger.toolComplete("search_tango_contracts", true, Date.now() - startTime, {
+					returned: normalizedContracts.length,
+					total: response.data.total || response.data.count,
+				});
+
 				const result = {
 					data: normalizedContracts,
 					total: response.data.total || response.data.count || normalizedContracts.length,
@@ -196,6 +213,11 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 				};
 			} catch (error) {
 				// Handle unexpected errors
+				logger.error(
+					"Unexpected error in search_tango_contracts",
+					error instanceof Error ? error : new Error(String(error)),
+					{ tool: "search_tango_contracts" }
+				);
 				return {
 					content: [
 						{

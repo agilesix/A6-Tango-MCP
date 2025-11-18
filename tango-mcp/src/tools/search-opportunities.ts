@@ -11,6 +11,7 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeOpportunity } from "@/utils/normalizer";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -88,8 +89,11 @@ export function registerSearchOpportunitiesTool(server: McpServer, env: Env): vo
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("search_tango_opportunities", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 

@@ -11,6 +11,7 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeGrant } from "@/utils/normalizer";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -88,14 +89,18 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("search_tango_grants", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
 				// Get API key from environment
 				const apiKey = env.TANGO_API_KEY;
 				if (!apiKey) {
+					logger.error("Missing API key", undefined, { tool: "search_tango_grants" });
 					return {
 						content: [
 							{
@@ -130,8 +135,10 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 				params.limit = sanitized.limit || 10;
 
 				// Call Tango API
+				logger.info("Calling Tango API", { endpoint: "searchGrants", params });
 				const client = new TangoApiClient(env);
 				const response = await client.searchGrants(params, apiKey);
+				logger.apiCall("/grants", "GET", response.status || 200, Date.now() - startTime);
 
 				// Handle API error
 				if (!response.success || !response.data) {
@@ -189,6 +196,11 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 				}
 
 				// Build response envelope
+				logger.toolComplete("search_tango_grants", true, Date.now() - startTime, {
+					returned: normalizedGrants.length,
+					client_side_filtering_applied: !!(sanitized.recipient_name || sanitized.recipient_uei || sanitized.award_amount_min || sanitized.award_amount_max),
+				});
+
 				const result = {
 					data: normalizedGrants,
 					total: response.data.total || response.data.count || normalizedGrants.length,
@@ -230,7 +242,11 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 					],
 				};
 			} catch (error) {
-				// Handle unexpected errors
+				logger.error(
+					"Unexpected error in search_tango_grants",
+					error instanceof Error ? error : new Error(String(error)),
+					{ tool: "search_tango_grants" }
+				);
 				return {
 					content: [
 						{

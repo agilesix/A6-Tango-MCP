@@ -11,6 +11,7 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeContract } from "@/utils/normalizer";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -69,8 +70,11 @@ export function registerGetSpendingSummaryTool(server: McpServer, env: Env): voi
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("get_tango_spending_summary", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
