@@ -36,12 +36,18 @@ export interface MCPProps extends Record<string, unknown> {
  * Main MCP Agent class
  *
  * Supports per-user API keys via the tangoApiKey prop.
- * Users configure their API key in Claude Desktop config:
+ * Users configure their API key using mcp-remote with custom headers:
  * {
  *   "mcpServers": {
- *     "tango-mcp": {
- *       "url": "https://your-worker.workers.dev/sse",
- *       "headers": { "x-tango-api-key": "YOUR_KEY_HERE" }
+ *     "tango": {
+ *       "command": "npx",
+ *       "args": [
+ *         "-y",
+ *         "mcp-remote",
+ *         "https://your-worker.workers.dev/sse",
+ *         "--header",
+ *         "x-tango-api-key:YOUR_KEY_HERE"
+ *       ]
  *     }
  *   }
  * }
@@ -53,12 +59,12 @@ export class MCPServerAgent extends McpAgent<Env, {}, MCPProps> {
 	});
 
 	async init() {
-		// Access env through the agent context
-		// The McpAgent framework provides env through 'this' context during agent execution
-		const env = (this as any).env || ({} as Env & { USER_TANGO_API_KEY?: string });
+		// Access env and props through the agent context
+		// The McpAgent framework provides env and props through 'this' context during agent execution
+		const env = (this as any).env || ({} as Env);
 
-		// Get user's API key from augmented env (extracted from x-tango-api-key header)
-		const userApiKey = (env as any).USER_TANGO_API_KEY;
+		// Get user's API key from props (extracted from x-tango-api-key header)
+		const userApiKey = this.props?.tangoApiKey;
 
 		// Initialize cache manager
 		const cache = env.TANGO_CACHE ? createCacheManager(env) : undefined;
@@ -163,16 +169,19 @@ export default {
 
 		// Route: SSE/MCP endpoint
 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
-			// Extract user's Tango API key from request headers and store in env
+			// Extract user's Tango API key from request headers
 			const userTangoApiKey = request.headers.get("x-tango-api-key");
 
-			// Augment env with user API key for this request
-			const envWithUserKey = {
-				...env,
-				USER_TANGO_API_KEY: userTangoApiKey || undefined,
-			} as Env & { USER_TANGO_API_KEY?: string };
+			// Create an augmented context with props containing the API key
+			// The McpAgent framework expects user-specific data in ctx.props
+			const ctxWithProps = {
+				...ctx,
+				props: {
+					tangoApiKey: userTangoApiKey || undefined,
+				} as MCPProps,
+			};
 
-			return MCPServerAgent.serveSSE('/sse').fetch(request, envWithUserKey, ctx);
+			return MCPServerAgent.serveSSE('/sse').fetch(request, env, ctxWithProps);
 		}
 
 		// Route: Standard MCP endpoint (JSON-RPC)
