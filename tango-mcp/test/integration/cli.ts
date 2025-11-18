@@ -519,10 +519,29 @@ async function runPreFlightChecks(
 		await access(wranglerPath);
 		const content = await readFile(wranglerPath, "utf-8");
 
-		// Parse JSONC (simple comment removal)
+		// Parse JSONC (improved comment removal that preserves strings)
+		// Remove single-line comments (but not // inside strings)
+		// This is a simplified approach - only remove comments at line start or after whitespace
 		const jsonContent = content
-			.replace(/\/\*[\s\S]*?\*\//g, "")
-			.replace(/\/\/.*/g, "");
+			.replace(/\/\*[\s\S]*?\*\//g, "") // Remove multi-line comments
+			.split('\n')
+			.map(line => {
+				// Only remove // comments if they appear outside of quoted strings
+				// Simple heuristic: if line has quotes before //, it's likely in a string
+				const commentIndex = line.indexOf('//');
+				if (commentIndex === -1) return line;
+
+				// Count quotes before comment
+				const beforeComment = line.substring(0, commentIndex);
+				const quoteCount = (beforeComment.match(/"/g) || []).length;
+
+				// If odd number of quotes, // is inside a string, keep the line
+				if (quoteCount % 2 !== 0) return line;
+
+				// Even quotes (or no quotes), safe to remove comment
+				return line.substring(0, commentIndex);
+			})
+			.join('\n');
 		const config = JSON.parse(jsonContent);
 
 		// Check for required fields

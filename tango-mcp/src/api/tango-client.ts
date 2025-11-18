@@ -409,7 +409,10 @@ export class TangoApiClient {
    * @returns Full URL with query string
    */
   private buildUrl(endpoint: string, params: Record<string, unknown>): string {
-    const url = new URL(endpoint, this.baseUrl);
+    // Ensure baseUrl ends with / and endpoint doesn't start with / to avoid path replacement
+    const base = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    const path = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+    const url = new URL(path, base);
 
     // Add query parameters
     for (const [key, value] of Object.entries(params)) {
@@ -436,6 +439,8 @@ export class TangoApiClient {
       const errorBody = await response.json();
       if (errorBody && typeof errorBody === "object" && "error" in errorBody) {
         errorMessage = String(errorBody.error);
+      } else if (errorBody && typeof errorBody === "object" && "detail" in errorBody) {
+        errorMessage = String(errorBody.detail);
       }
     } catch {
       // Ignore JSON parse errors

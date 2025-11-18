@@ -6,9 +6,10 @@ import { MCPClientAdapter } from "./adapters/client-adapter.js";
 
 /**
  * Default server URL for integration tests
+ * Using SSE endpoint for Cloudflare Workers deployment
  */
 export const DEFAULT_SERVER_URL =
-	process.env.MCP_SERVER_URL || "http://localhost:8788/mcp";
+	process.env.MCP_SERVER_URL || "http://localhost:8788/sse";
 
 /**
  * Default timeout for tool calls (milliseconds)
