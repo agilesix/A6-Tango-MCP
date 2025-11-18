@@ -8,6 +8,7 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerHealthTool } from "./tools/health.js";
 import { registerSearchContractsTool } from "./tools/search-contracts.js";
+import { registerSearchGrantsTool } from "./tools/search-grants.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
 // </mcp-auth:imports>
@@ -28,6 +29,7 @@ export class MCPServerAgent extends McpAgent<Env> {
 		// Register all tools
 		registerHealthTool(this.server);
 		registerSearchContractsTool(this.server);
+		registerSearchGrantsTool(this.server);
 	}
 }
 
