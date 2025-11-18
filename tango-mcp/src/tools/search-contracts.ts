@@ -22,65 +22,105 @@ import { z } from "zod";
 export function registerSearchContractsTool(
 	server: McpServer,
 	env: Env,
-	cache?: CacheManager
+	cache?: CacheManager,
 ): void {
 	server.tool(
 		"search_tango_contracts",
-		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
+		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, funding agency (may differ from awarding), industry classifications (NAICS/PSC), award date ranges, period of performance dates (PoP start/end), contract expiration dates, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, competitor analysis, and identifying expiring contracts. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration, and cursor-based pagination for large result sets.",
 		{
 			query: z
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across contract descriptions and titles. Example: 'IT services' or 'cloud computing'"
+					"Free-text search across contract descriptions and titles. Example: 'IT services' or 'cloud computing'",
 				),
 			vendor_name: z
 				.string()
 				.optional()
 				.describe(
-					"Vendor/contractor name filter. Case-insensitive partial match. Example: 'Lockheed Martin'"
+					"Vendor/contractor name filter. Case-insensitive partial match. Example: 'Lockheed Martin'",
 				),
 			vendor_uei: z
 				.string()
 				.optional()
 				.describe(
-					"Unique Entity Identifier (12-character alphanumeric). For exact vendor matching. Example: 'J3RW5C5KVLZ1'"
+					"Unique Entity Identifier (12-character alphanumeric). For exact vendor matching. Example: 'J3RW5C5KVLZ1'",
 				),
 			awarding_agency: z
 				.string()
 				.optional()
 				.describe(
-					"Awarding agency name or code. Example: 'Department of Defense' or 'DOD'"
+					"Awarding agency name or code. Example: 'Department of Defense' or 'DOD'",
+				),
+			funding_agency: z
+				.string()
+				.optional()
+				.describe(
+					"Funding agency name or code (may differ from awarding agency). Example: 'Department of Defense' or 'DOD'",
 				),
 			naics_code: z
 				.string()
 				.optional()
 				.describe(
-					"NAICS industry classification code (2-6 digits). Example: '541512' for computer systems design"
+					"NAICS industry classification code (2-6 digits). Example: '541512' for computer systems design",
 				),
 			psc_code: z
 				.string()
 				.optional()
-				.describe(
-					"Product/Service Code. Example: 'D302' for IT and telecom"
-				),
+				.describe("Product/Service Code. Example: 'D302' for IT and telecom"),
 			award_date_start: z
 				.string()
 				.optional()
 				.describe(
-					"Earliest award date to include (YYYY-MM-DD format). Example: '2024-01-01'"
+					"Earliest award date to include (YYYY-MM-DD format). Example: '2024-01-01'",
 				),
 			award_date_end: z
 				.string()
 				.optional()
 				.describe(
-					"Latest award date to include (YYYY-MM-DD format). Example: '2024-12-31'"
+					"Latest award date to include (YYYY-MM-DD format). Example: '2024-12-31'",
+				),
+			pop_start_date_after: z
+				.string()
+				.optional()
+				.describe(
+					"Earliest period of performance start date to include (YYYY-MM-DD format). Example: '2024-01-01'",
+				),
+			pop_start_date_before: z
+				.string()
+				.optional()
+				.describe(
+					"Latest period of performance start date to include (YYYY-MM-DD format). Example: '2024-12-31'",
+				),
+			pop_end_date_after: z
+				.string()
+				.optional()
+				.describe(
+					"Earliest period of performance end date to include (YYYY-MM-DD format). Example: '2024-01-01'",
+				),
+			pop_end_date_before: z
+				.string()
+				.optional()
+				.describe(
+					"Latest period of performance end date to include (YYYY-MM-DD format). Example: '2024-12-31'",
+				),
+			expiration_date_after: z
+				.string()
+				.optional()
+				.describe(
+					"Filter contracts expiring on or after this date, based on ultimate period of performance end date (YYYY-MM-DD format). Example: '2024-01-01'",
+				),
+			expiration_date_before: z
+				.string()
+				.optional()
+				.describe(
+					"Filter contracts expiring on or before this date, based on ultimate period of performance end date (YYYY-MM-DD format). Example: '2024-12-31'",
 				),
 			set_aside_type: z
 				.string()
 				.optional()
 				.describe(
-					"Contract set-aside category. Values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A', 'HUBZone'. Leave empty for all types."
+					"Contract set-aside category. Values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A', 'HUBZone'. Leave empty for all types.",
 				),
 			fiscal_year: z
 				.number()
@@ -89,7 +129,7 @@ export function registerSearchContractsTool(
 				.max(2030)
 				.optional()
 				.describe(
-					"Filter by exact federal fiscal year. Format: YYYY. Example: 2024 for FY2024 (Oct 2023 - Sep 2024). Mutually exclusive with fiscal_year_start/end."
+					"Filter by exact federal fiscal year. Format: YYYY. Example: 2024 for FY2024 (Oct 2023 - Sep 2024). Mutually exclusive with fiscal_year_start/end.",
 				),
 			fiscal_year_start: z
 				.number()
@@ -98,7 +138,7 @@ export function registerSearchContractsTool(
 				.max(2030)
 				.optional()
 				.describe(
-					"Filter by fiscal year range start (inclusive). Example: 2020 for FY2020 and later. Use with fiscal_year_end for ranges."
+					"Filter by fiscal year range start (inclusive). Example: 2020 for FY2020 and later. Use with fiscal_year_end for ranges.",
 				),
 			fiscal_year_end: z
 				.number()
@@ -107,7 +147,7 @@ export function registerSearchContractsTool(
 				.max(2030)
 				.optional()
 				.describe(
-					"Filter by fiscal year range end (inclusive). Example: 2024 for FY2024 and earlier. Use with fiscal_year_start for ranges."
+					"Filter by fiscal year range end (inclusive). Example: 2024 for FY2024 and earlier. Use with fiscal_year_start for ranges.",
 				),
 			limit: z
 				.number()
@@ -117,7 +157,7 @@ export function registerSearchContractsTool(
 				.default(10)
 				.optional()
 				.describe(
-					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses.",
 				),
 			export_format: z
 				.enum(["json", "csv"])
@@ -153,7 +193,9 @@ export function registerSearchContractsTool(
 				// Get API key from environment
 				const apiKey = env.TANGO_API_KEY;
 				if (!apiKey) {
-					logger.error("Missing API key", undefined, { tool: "search_tango_contracts" });
+					logger.error("Missing API key", undefined, {
+						tool: "search_tango_contracts",
+					});
 					return {
 						content: [
 							{
@@ -167,7 +209,7 @@ export function registerSearchContractsTool(
 										recoverable: true,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -181,12 +223,26 @@ export function registerSearchContractsTool(
 				if (sanitized.vendor_uei) params.uei = sanitized.vendor_uei;
 				if (sanitized.awarding_agency)
 					params.awarding_agency = sanitized.awarding_agency;
+				if (sanitized.funding_agency)
+					params.funding_agency = sanitized.funding_agency;
 				if (sanitized.naics_code) params.naics = sanitized.naics_code;
 				if (sanitized.psc_code) params.psc = sanitized.psc_code;
 				if (sanitized.award_date_start)
 					params.award_date_gte = sanitized.award_date_start;
 				if (sanitized.award_date_end)
 					params.award_date_lte = sanitized.award_date_end;
+				if (sanitized.pop_start_date_after)
+					params.pop_start_date_gte = sanitized.pop_start_date_after;
+				if (sanitized.pop_start_date_before)
+					params.pop_start_date_lte = sanitized.pop_start_date_before;
+				if (sanitized.pop_end_date_after)
+					params.pop_end_date_gte = sanitized.pop_end_date_after;
+				if (sanitized.pop_end_date_before)
+					params.pop_end_date_lte = sanitized.pop_end_date_before;
+				if (sanitized.expiration_date_after)
+					params.expiring_gte = sanitized.expiration_date_after;
+				if (sanitized.expiration_date_before)
+					params.expiring_lte = sanitized.expiration_date_before;
 				if (sanitized.set_aside_type)
 					params.set_aside = sanitized.set_aside_type;
 
@@ -206,17 +262,19 @@ export function registerSearchContractsTool(
 										{
 											error: "Parameter conflict",
 											error_code: "INVALID_PARAMETER_COMBINATION",
-											message: "Use either fiscal_year OR fiscal_year_start/end, not both",
+											message:
+												"Use either fiscal_year OR fiscal_year_start/end, not both",
 											parameters_provided: {
 												fiscal_year: sanitized.fiscal_year,
 												fiscal_year_start: sanitized.fiscal_year_start,
 												fiscal_year_end: sanitized.fiscal_year_end,
 											},
-											suggestion: "Remove fiscal_year to use range, or remove fiscal_year_start/end to use exact year",
+											suggestion:
+												"Remove fiscal_year to use range, or remove fiscal_year_start/end to use exact year",
 											recoverable: true,
 										},
 										null,
-										2
+										2,
 									),
 								},
 							],
@@ -254,7 +312,7 @@ export function registerSearchContractsTool(
 											recoverable: true,
 										},
 										null,
-										2
+										2,
 									),
 								},
 							],
@@ -309,16 +367,24 @@ export function registerSearchContractsTool(
 				}
 
 				// Call Tango API with caching
-				logger.info("Calling Tango API", { endpoint: "searchContracts", params });
+				logger.info("Calling Tango API", {
+					endpoint: "searchContracts",
+					params,
+				});
 				const client = new TangoApiClient(env, cache);
 				const response = await client.searchContracts(params, apiKey);
-				logger.apiCall("/contracts", "GET", response.status || 200, Date.now() - startTime);
+				logger.apiCall(
+					"/contracts",
+					"GET",
+					response.status || 200,
+					Date.now() - startTime,
+				);
 
 				// Handle API error
 				if (!response.success || !response.data) {
 					logger.warn("API request failed", {
 						error: response.error,
-						status: response.status
+						status: response.status,
 					});
 					return {
 						content: [
@@ -331,10 +397,11 @@ export function registerSearchContractsTool(
 										status: response.status,
 										suggestion: "Check your search parameters and try again",
 										recoverable: true,
-										transient: response.status === 429 || response.status === 503,
+										transient:
+											response.status === 429 || response.status === 503,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -361,21 +428,29 @@ export function registerSearchContractsTool(
 
 				// Normalize results (JSON format)
 				const normalizedContracts = (response.data.results || []).map(
-					normalizeContract
+					normalizeContract,
 				);
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
 
 				// Build response envelope
-				logger.toolComplete("search_tango_contracts", true, Date.now() - startTime, {
-					returned: normalizedContracts.length,
-					total: response.data.total || response.data.count,
-				});
+				logger.toolComplete(
+					"search_tango_contracts",
+					true,
+					Date.now() - startTime,
+					{
+						returned: normalizedContracts.length,
+						total: response.data.total || response.data.count,
+					},
+				);
 
 				const result = {
 					data: normalizedContracts,
-					total: response.data.total || response.data.count || normalizedContracts.length,
+					total:
+						response.data.total ||
+						response.data.count ||
+						normalizedContracts.length,
 					returned: normalizedContracts.length,
 					filters: sanitized,
 					pagination: {
@@ -408,7 +483,7 @@ export function registerSearchContractsTool(
 				logger.error(
 					"Unexpected error in search_tango_contracts",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_contracts" }
+					{ tool: "search_tango_contracts" },
 				);
 				return {
 					content: [
@@ -426,12 +501,12 @@ export function registerSearchContractsTool(
 									},
 								},
 								null,
-								2
+								2,
 							),
 						},
 					],
 				};
 			}
-		}
+		},
 	);
 }
