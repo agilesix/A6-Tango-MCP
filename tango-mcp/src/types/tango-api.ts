@@ -42,6 +42,13 @@ export interface TangoContractResponse {
     office_name?: string;
   };
 
+  /** Funding office information */
+  funding_office?: {
+    agency_name?: string;
+    agency_code?: string;
+    office_name?: string;
+  };
+
   /** Obligated amount */
   obligated?: number;
   /** Total contract value */
@@ -79,12 +86,59 @@ export interface TangoContractResponse {
     city_name?: string;
     state_name?: string;
     country_name?: string;
+    zip?: string;
+    country_code?: string;
   };
 
   /** Contract status */
   contract_status?: string;
   /** Status (alternative field) */
   status?: string;
+
+  /** Solicitation identifier */
+  solicitation_identifier?: string;
+
+  /** Parent award information */
+  parent_award?: {
+    piid?: string;
+    agency_name?: string;
+    agency_code?: string;
+  };
+
+  /** Contract pricing/type information */
+  contract_pricing_type?: {
+    code?: string;
+    description?: string;
+  };
+
+  /** Legislative mandates */
+  legislative_mandates?: {
+    clinger_cohen_act?: boolean;
+    davis_bacon_act?: boolean;
+    service_contract_act?: boolean;
+    walsh_healey_act?: boolean;
+  };
+
+  /** Performance based service acquisition */
+  performance_based_service_acquisition?: string;
+
+  /** Contract bundling */
+  contract_bundling?: {
+    code?: string;
+    description?: string;
+  };
+
+  /** Consolidated contract */
+  consolidated_contract?: {
+    code?: string;
+    description?: string;
+  };
+
+  /** Number of actions */
+  number_of_actions?: number;
+
+  /** Solicitation date */
+  solicitation_date?: string;
 }
 
 /**
@@ -341,34 +395,117 @@ export interface TangoVendorResponse {
   legal_business_name?: string;
   /** Display name (alternative) */
   name?: string;
+  /** DBA (Doing Business As) name */
+  dba_name?: string;
 
   /** DUNS number (legacy identifier) */
   duns?: string;
   /** CAGE code */
   cage_code?: string;
+  /** DODAAC code */
+  dodaac?: string;
 
   /** SAM.gov registration status */
   registration_status?: string;
+  /** Registration activated flag */
+  registered?: string;
   /** Registration activation date */
   activation_date?: string;
+  /** SAM activation date */
+  sam_activation_date?: string;
   /** Registration expiration date */
   expiration_date?: string;
+  /** SAM expiration date */
+  sam_expiration_date?: string;
+  /** SAM registration date */
+  sam_registration_date?: string;
+  /** Last update date */
+  last_update_date?: string;
+
+  /** Exclusion status flag */
+  exclusion_status_flag?: string;
+  /** Exclusion URL */
+  exclusion_url?: string;
 
   /** Business types/classifications */
   business_types?: any;
   /** Business type list (alternative field) */
   business_type_list?: any;
+  /** SBA business types */
+  sba_business_types?: any;
+
+  /** Entity structure information */
+  entity_structure_code?: string;
+  entity_structure_desc?: string;
+
+  /** Entity type information */
+  entity_type_code?: string;
+  entity_type_desc?: string;
+
+  /** Profit structure information */
+  profit_structure_code?: string;
+  profit_structure_desc?: string;
+
+  /** Organization structure information */
+  organization_structure_code?: string;
+  organization_structure_desc?: string;
+
+  /** Incorporation details */
+  state_of_incorporation_code?: string;
+  state_of_incorporation_desc?: string;
+  country_of_incorporation_code?: string;
+  country_of_incorporation_desc?: string;
+
+  /** Entity division information */
+  entity_division_name?: string;
+  entity_division_number?: string;
+
+  /** Entity start date */
+  entity_start_date?: string;
+
+  /** Congressional district */
+  congressional_district?: string;
 
   /** Physical address information */
   physical_address?: any;
   /** Mailing address information */
   mailing_address?: any;
 
+  /** Email address */
+  email_address?: string;
+
+  /** Entity URL */
+  entity_url?: string;
+
+  /** Purpose of registration */
+  purpose_of_registration_code?: string;
+  purpose_of_registration_desc?: string;
+
+  /** UEI status and dates */
+  uei_status?: string;
+  uei_creation_date?: string;
+  uei_expiration_date?: string;
+
+  /** Public display flag */
+  public_display_flag?: string;
+
+  /** Description and capabilities */
+  description?: string;
+  capabilities?: string;
+  keywords?: string;
+
+  /** Fiscal year end close date */
+  fiscal_year_end_close_date?: string;
+  /** Submission date */
+  submission_date?: string;
+
   /** Points of contact */
   points_of_contact?: any;
   /** Contacts (alternative field) */
   contacts?: any;
 
+  /** Primary NAICS */
+  primary_naics?: string;
   /** NAICS codes the vendor is registered for */
   naics_codes?: any;
   /** PSC codes the vendor is registered for */
@@ -376,6 +513,13 @@ export interface TangoVendorResponse {
 
   /** Certifications and qualifications */
   certifications?: any;
+
+  /** Ownership information */
+  highest_owner?: any;
+  immediate_owner?: any;
+
+  /** Relationships */
+  relationships?: any[];
 
   /** Total number of contracts */
   total_contracts?: number;
@@ -388,6 +532,9 @@ export interface TangoVendorResponse {
 
   /** Federal obligations - primary vendor performance metric */
   federal_obligations?: TangoFederalObligations;
+
+  /** EVS source */
+  evs_source?: string;
 }
 
 /**
@@ -427,12 +574,20 @@ export interface TangoOpportunityResponse {
     agency_name?: string;
     agency_code?: string;
     office_name?: string;
+    office_address?: {
+      city?: string;
+      state?: string;
+      zip?: string;
+      country?: string;
+    };
   };
 
   /** Posted date (YYYY-MM-DD format) */
   posted_date?: string;
   /** First notice date */
   first_notice_date?: string;
+  /** Last notice date */
+  last_notice_date?: string;
   /** Date posted (alternative field) */
   date_posted?: string;
 
@@ -443,10 +598,18 @@ export interface TangoOpportunityResponse {
 
   /** NAICS code */
   naics_code?: string;
+  /** NAICS description */
+  naics_description?: string;
+
+  /** PSC (Product/Service Code) */
+  psc_code?: string;
+  /** PSC description */
+  psc_description?: string;
 
   /** Set-aside information (nested) */
   set_aside?: {
     code?: string;
+    description?: string;
   };
   /** Set-aside type (flat format) */
   set_aside_type?: string;
@@ -457,6 +620,7 @@ export interface TangoOpportunityResponse {
     state?: string;
     zip?: string;
     country?: string;
+    address?: string;
   };
 
   /** Opportunity summary */
@@ -470,6 +634,37 @@ export interface TangoOpportunityResponse {
   url?: string;
   /** Link (alternative field) */
   link?: string;
+
+  /** Award number */
+  award_number?: string;
+
+  /** Primary contact */
+  primary_contact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+  };
+
+  /** Attachments */
+  attachments?: Array<{
+    name?: string;
+    url?: string;
+    type?: string;
+  }>;
+
+  /** Notice history */
+  notice_history?: Array<{
+    date?: string;
+    type?: string;
+    description?: string;
+  }>;
+
+  /** Classification code */
+  classification_code?: string;
+
+  /** Archive date */
+  archive_date?: string;
 }
 
 /**
