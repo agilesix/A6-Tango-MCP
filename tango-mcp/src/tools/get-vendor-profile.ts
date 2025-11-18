@@ -39,7 +39,17 @@ export function registerGetVendorProfileTool(
 				.default(false)
 				.optional()
 				.describe(
-					"Include recent contract and grant history. Default: false. Set to true for recent awards (up to 5 most recent)."
+					"Include recent contract and grant history. Default: false. Set to true to fetch recent awards history."
+				),
+			history_limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(50)
+				.default(10)
+				.optional()
+				.describe(
+					"Maximum number of history records to fetch per type (contracts and subawards). Default: 10. Only used when include_history is true."
 				),
 		},
 		async (args) => {
@@ -138,6 +148,68 @@ export function registerGetVendorProfileTool(
 				// Normalize vendor profile
 				const normalizedVendor = normalizeVendor(response.data);
 
+				// Fetch history if requested
+				if (sanitized.include_history) {
+					const limit = sanitized.history_limit || 10;
+
+					try {
+						// Fetch contracts and subawards in parallel
+						const [contractsResponse, subawardsResponse] = await Promise.all([
+							client.getVendorContracts(
+								sanitized.uei,
+								{ limit: limit.toString() },
+								apiKey
+							),
+							client.getVendorGrants(
+								sanitized.uei,
+								{ limit: limit.toString() },
+								apiKey
+							),
+						]);
+						apiCalls += 2;
+
+						// Add contract history
+						if (contractsResponse.success && contractsResponse.data?.results) {
+							normalizedVendor.contract_history = contractsResponse.data.results.map(
+								(contract) => ({
+									piid: contract.piid,
+									title: contract.title || contract.description,
+									award_date: contract.award_date,
+									amount: contract.obligated || contract.total_contract_value,
+								})
+							);
+						}
+
+						// Add subaward history
+						if (subawardsResponse.success && subawardsResponse.data?.results) {
+							normalizedVendor.subaward_history = subawardsResponse.data.results.map(
+								(grant) => ({
+									award_id: grant.fain || grant.grant_id,
+									title: grant.title || grant.description,
+									award_date: grant.award_date,
+									amount: grant.award_amount || grant.total_funding_amount,
+								})
+							);
+						}
+
+						logger.info("Entity history fetched successfully", {
+							uei: sanitized.uei,
+							contracts_count: normalizedVendor.contract_history?.length || 0,
+							subawards_count: normalizedVendor.subaward_history?.length || 0,
+						});
+					} catch (error) {
+						// Log error but don't fail entire request
+						logger.warn("Failed to fetch entity history", {
+							error: error instanceof Error ? error.message : "Unknown error",
+							uei: sanitized.uei,
+						});
+
+						// Set empty arrays to indicate history was attempted but failed
+						normalizedVendor.contract_history = [];
+						normalizedVendor.subaward_history = [];
+					}
+				}
+
 				// Build response envelope
 				const result = {
 					data: normalizedVendor,
@@ -146,6 +218,7 @@ export function registerGetVendorProfileTool(
 						duration_ms: Date.now() - startTime,
 						cached: false,
 						api_calls: apiCalls,
+						history_fetched: sanitized.include_history || false,
 					},
 				};
 
