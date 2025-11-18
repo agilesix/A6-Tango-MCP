@@ -356,7 +356,7 @@ describe("search_tango_grants tool", () => {
         data: {
           results: [],
           total: 100,
-          next: "https://tango.makegov.com/api/grants/?page=2",
+          next: "https://tango.makegov.com/api/grants/?cursor=abc123",
         },
         status: 200,
       });
@@ -372,9 +372,7 @@ describe("search_tango_grants tool", () => {
 
       const data = JSON.parse(result.content[0].text);
       expect(data.pagination.has_more).toBe(true);
-      expect(data.pagination.next_page).toBe(
-        "https://tango.makegov.com/api/grants/?page=2"
-      );
+      expect(data.pagination.next_cursor).toBe("abc123");
     });
   });
 
