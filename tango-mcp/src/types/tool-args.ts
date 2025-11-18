@@ -332,13 +332,13 @@ export interface SearchOpportunitiesArgs {
   response_deadline_after?: string;
 
   /**
-   * Filter by opportunity status
-   * Values: 'active', 'inactive', 'closed', 'forecasted'
-   *
-   * @example "active" - Currently accepting responses
-   * @example "forecasted" - Upcoming opportunities
+   * Filter by active status.
+   * - true: Only active opportunities
+   * - false: Only inactive opportunities
+   * - undefined: All opportunities
+   * @example true
    */
-  status?: string;
+  active?: boolean;
 
   /**
    * Notice type code
