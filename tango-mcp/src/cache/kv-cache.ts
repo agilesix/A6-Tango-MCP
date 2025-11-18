@@ -218,7 +218,8 @@ export class CacheManager {
 					count++;
 				}
 
-				cursor = list.cursor;
+				// Check if there are more results
+				cursor = list.list_complete ? undefined : list.cursor;
 			} while (cursor);
 
 			return {
@@ -267,7 +268,8 @@ export class CacheManager {
 					byPrefix[prefix] = (byPrefix[prefix] || 0) + 1;
 				}
 
-				cursor = list.cursor;
+				// Check if there are more results
+				cursor = list.list_complete ? undefined : list.cursor;
 			} while (cursor);
 
 			return {
