@@ -16,7 +16,7 @@ import { z } from "zod";
 /**
  * Register search contracts tool with the MCP server
  */
-export function registerSearchContractsTool(server: McpServer): void {
+export function registerSearchContractsTool(server: McpServer, env: Env): void {
 	server.tool(
 		"search_tango_contracts",
 		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, and set-aside categories. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request.",
@@ -86,7 +86,7 @@ export function registerSearchContractsTool(server: McpServer): void {
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
 				),
 		},
-		async (args: SearchContractsArgs, { env }: { env: Env }) => {
+		async (args) => {
 			const startTime = Date.now();
 
 			try {

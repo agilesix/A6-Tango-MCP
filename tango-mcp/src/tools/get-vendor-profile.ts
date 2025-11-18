@@ -16,12 +16,12 @@ import { z } from "zod";
 /**
  * Register get vendor profile tool with the MCP server
  */
-export function registerGetVendorProfileTool(server: McpServer): void {
+export function registerGetVendorProfileTool(server: McpServer, env: Env): void {
 	server.tool(
 		"get_tango_vendor_profile",
 		"Retrieve comprehensive entity profile from SAM.gov data through Tango's unified API. Returns detailed vendor information including legal business name, DUNS, CAGE code, registration status, business types, physical/mailing addresses, points of contact, NAICS/PSC codes, certifications, and performance summary (total contracts/grants and values). Required parameter: vendor UEI (Unique Entity Identifier). Useful for vendor due diligence, capability assessment, and contact information lookup.",
 		{
-			vendor_uei: z
+			uei: z
 				.string()
 				.length(12)
 				.regex(/^[A-Z0-9]{12}$/i)
@@ -36,7 +36,7 @@ export function registerGetVendorProfileTool(server: McpServer): void {
 					"Include recent contract and grant history. Default: false. Set to true for recent awards (up to 5 most recent)."
 				),
 		},
-		async (args: GetVendorProfileArgs, { env }: { env: Env }) => {
+		async (args) => {
 			const startTime = Date.now();
 
 			try {
@@ -44,16 +44,16 @@ export function registerGetVendorProfileTool(server: McpServer): void {
 				const sanitized = sanitizeToolArgs(args);
 
 				// Validate required parameter
-				if (!sanitized.vendor_uei) {
+				if (!sanitized.uei) {
 					return {
 						content: [
 							{
 								type: "text",
 								text: JSON.stringify(
 									{
-										error: "Missing required parameter: vendor_uei",
+										error: "Missing required parameter: uei",
 										error_code: "MISSING_PARAMETER",
-										parameter: "vendor_uei",
+										parameter: "uei",
 										suggestion:
 											"Provide a 12-character Unique Entity Identifier. You can search by vendor name first using search_tango_contracts with vendor_name parameter.",
 										recoverable: true,
@@ -95,7 +95,7 @@ export function registerGetVendorProfileTool(server: McpServer): void {
 
 				// Get main vendor profile
 				const response = await client.getVendorProfile(
-					sanitized.vendor_uei,
+					sanitized.uei,
 					apiKey
 				);
 				apiCalls++;
@@ -129,14 +129,6 @@ export function registerGetVendorProfileTool(server: McpServer): void {
 				// Normalize vendor profile
 				const normalizedVendor = normalizeVendor(response.data);
 
-				// Optionally fetch contract and grant history
-				if (sanitized.include_history) {
-					// Note: In a full implementation, we would fetch contract and grant history here
-					// For MVP, we'll include a note that this requires additional API calls
-					normalizedVendor.recent_contracts = [];
-					normalizedVendor.recent_grants = [];
-				}
-
 				// Build response envelope
 				const result = {
 					data: normalizedVendor,
@@ -167,8 +159,8 @@ export function registerGetVendorProfileTool(server: McpServer): void {
 									{
 										error: "Invalid UEI format",
 										error_code: "INVALID_FORMAT",
-										parameter: "vendor_uei",
-										provided: args.vendor_uei,
+										parameter: "uei",
+										provided: args.uei,
 										expected_format: "12-character alphanumeric",
 										example: "J3RW5C5KVLZ1",
 										recoverable: true,

@@ -29,13 +29,18 @@ export class MCPServerAgent extends McpAgent<Env> {
 	});
 
 	async init() {
+		// Access env through the agent context
+		// The McpAgent framework provides env through 'this' context during agent execution
+		// For now, we'll pass a temporary env object that will be replaced at runtime
+		const env = (this as any).env || ({} as Env);
+
 		// Register all tools
 		registerHealthTool(this.server);
-		registerSearchContractsTool(this.server);
-		registerSearchGrantsTool(this.server);
-		registerGetVendorProfileTool(this.server);
-		registerSearchOpportunitiesTool(this.server);
-		registerGetSpendingSummaryTool(this.server);
+		registerSearchContractsTool(this.server, env);
+		registerSearchGrantsTool(this.server, env);
+		registerGetVendorProfileTool(this.server, env);
+		registerSearchOpportunitiesTool(this.server, env);
+		registerGetSpendingSummaryTool(this.server, env);
 	}
 }
 

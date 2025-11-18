@@ -16,7 +16,7 @@ import { z } from "zod";
 /**
  * Register get spending summary tool with the MCP server
  */
-export function registerGetSpendingSummaryTool(server: McpServer): void {
+export function registerGetSpendingSummaryTool(server: McpServer, env: Env): void {
 	server.tool(
 		"get_tango_spending_summary",
 		"Generate aggregated spending analytics from federal contracts and grants through Tango's unified API. Returns total spending, contract/grant counts, and breakdowns by agency, vendor, NAICS code, PSC code, or month. Supports filtering by: awarding agency, vendor UEI, fiscal year, and award type (contracts/grants/all). Aggregation dimensions: 'agency' (by awarding agency), 'vendor' (by recipient), 'naics' (by industry code), 'psc' (by product/service code), 'month' (by award month). Useful for spending analysis, budget tracking, market sizing, and trend identification. Maximum 100 contracts analyzed per request.",
@@ -67,7 +67,7 @@ export function registerGetSpendingSummaryTool(server: McpServer): void {
 					"Maximum records to analyze for aggregation. Default: 100, Maximum: 100. Higher values give more complete analysis but slower response."
 				),
 		},
-		async (args: GetSpendingSummaryArgs, { env }: { env: Env }) => {
+		async (args) => {
 			const startTime = Date.now();
 
 			try {
@@ -152,28 +152,28 @@ export function registerGetSpendingSummaryTool(server: McpServer): void {
 
 					switch (groupBy) {
 						case "agency":
-							key = contract.agency.code || contract.agency.name;
-							label = contract.agency.name;
+							key = contract.agency.code || contract.agency.name || "unknown";
+							label = contract.agency.name || "Unknown Agency";
 							break;
 						case "vendor":
-							key = contract.vendor.uei || contract.vendor.name;
-							label = contract.vendor.name;
+							key = contract.vendor.uei || contract.vendor.name || "unknown";
+							label = contract.vendor.name || "Unknown Vendor";
 							break;
 						case "naics":
-							key = contract.naics_code;
-							label = `${contract.naics_code} - ${contract.naics_description}`;
+							key = contract.naics_code || "unknown";
+							label = `${contract.naics_code || "unknown"} - ${contract.naics_description || ""}`;
 							break;
 						case "psc":
-							key = contract.psc_code;
-							label = `${contract.psc_code} - ${contract.psc_description}`;
+							key = contract.psc_code || "unknown";
+							label = `${contract.psc_code || "unknown"} - ${contract.psc_description || ""}`;
 							break;
 						case "month":
-							key = contract.award_date.substring(0, 7); // YYYY-MM
+							key = contract.award_date ? contract.award_date.substring(0, 7) : "unknown"; // YYYY-MM
 							label = key;
 							break;
 						default:
-							key = contract.vendor.uei || contract.vendor.name;
-							label = contract.vendor.name;
+							key = contract.vendor.uei || contract.vendor.name || "unknown";
+							label = contract.vendor.name || "Unknown Vendor";
 					}
 
 					const existing = aggregation.get(key) || { total: 0, count: 0 };

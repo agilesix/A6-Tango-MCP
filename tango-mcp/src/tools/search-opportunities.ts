@@ -16,7 +16,7 @@ import { z } from "zod";
 /**
  * Register search opportunities tool with the MCP server
  */
-export function registerSearchOpportunitiesTool(server: McpServer): void {
+export function registerSearchOpportunitiesTool(server: McpServer, env: Env): void {
 	server.tool(
 		"search_tango_opportunities",
 		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status, and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request.",
@@ -86,7 +86,7 @@ export function registerSearchOpportunitiesTool(server: McpServer): void {
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
 				),
 		},
-		async (args: SearchOpportunitiesArgs, { env }: { env: Env }) => {
+		async (args) => {
 			const startTime = Date.now();
 
 			try {

@@ -16,7 +16,7 @@ import { z } from "zod";
 /**
  * Register search grants tool with the MCP server
  */
-export function registerSearchGrantsTool(server: McpServer): void {
+export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 	server.tool(
 		"search_tango_grants",
 		"Search federal grants and financial assistance awards from USASpending through Tango's unified API. Returns grant details including recipient information (name, UEI, type), agency details, award amounts, CFDA numbers, and project information. Supports filtering by: free-text search, awarding agency, CFDA number, date ranges. Client-side filtering for recipient name/UEI and award amount ranges. Useful for finding grants by recipient, agency grant distribution analysis, and research funding opportunities. Maximum 100 results per request.",
@@ -86,7 +86,7 @@ export function registerSearchGrantsTool(server: McpServer): void {
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
 				),
 		},
-		async (args: SearchGrantsArgs, { env }: { env: Env }) => {
+		async (args) => {
 			const startTime = Date.now();
 
 			try {
