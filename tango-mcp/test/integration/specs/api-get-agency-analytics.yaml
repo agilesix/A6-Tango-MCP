@@ -1,0 +1,10 @@
+name: "API Test - Get Agency Analytics"
+description: "Verify get_tango_agency_analytics returns agency spending analytics (1 API call)"
+tool: "get_tango_agency_analytics"
+arguments:
+  agency_code: "9507"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 10000

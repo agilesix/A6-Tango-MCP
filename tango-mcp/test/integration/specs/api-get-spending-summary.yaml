@@ -1,0 +1,10 @@
+name: "API Test - Get Spending Summary"
+description: "Verify get_tango_spending_summary returns vendor spending analytics (1 API call)"
+tool: "get_tango_spending_summary"
+arguments:
+  uei: "XRKKJ1T3PKP7"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 10000
