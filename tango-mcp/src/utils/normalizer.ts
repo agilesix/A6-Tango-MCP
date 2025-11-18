@@ -15,6 +15,7 @@ import type {
   TangoGrantResponse,
   TangoVendorResponse,
   TangoOpportunityResponse,
+  TangoFederalObligations,
 } from "@/types/tango-api";
 
 /**
@@ -134,6 +135,9 @@ export interface NormalizedVendor {
     total_grants: number;
     total_grant_value: number;
   };
+
+  /** Federal obligations - primary vendor performance metric */
+  federal_obligations: TangoFederalObligations;
 }
 
 /**
