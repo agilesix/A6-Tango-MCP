@@ -156,6 +156,81 @@ describe("get_tango_vendor_profile tool", () => {
     });
   });
 
+  describe("federal_obligations", () => {
+    it("should include federal_obligations in response when present in API data", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockGetVendorProfile = vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          uei: "J3RW5C5KVLZ1",
+          legal_business_name: "Test Corp",
+          federal_obligations: {
+            active_contracts: { total_obligated: 5000000, count: 10 },
+            total_contracts: { total_obligated: 15000000, count: 50 },
+            active_subawards: { total_obligated: 1000000, count: 3 },
+            total_subawards: { total_obligated: 3000000, count: 15 },
+            active_idvs: { count: 2 },
+            total_idvs: { count: 8 },
+          },
+        },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        getVendorProfile: mockGetVendorProfile,
+      }));
+
+      registerGetVendorProfileTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      const result = await handler({ uei: "J3RW5C5KVLZ1" });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.data.federal_obligations).toBeDefined();
+      expect(data.data.federal_obligations.active_contracts).toEqual({
+        total_obligated: 5000000,
+        count: 10,
+      });
+      expect(data.data.federal_obligations.total_contracts).toEqual({
+        total_obligated: 15000000,
+        count: 50,
+      });
+    });
+
+    it("should provide default federal_obligations when missing from API response", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockGetVendorProfile = vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          uei: "J3RW5C5KVLZ1",
+          legal_business_name: "Test Corp",
+          // No federal_obligations field
+        },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        getVendorProfile: mockGetVendorProfile,
+      }));
+
+      registerGetVendorProfileTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      const result = await handler({ uei: "J3RW5C5KVLZ1" });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.data.federal_obligations).toBeDefined();
+      expect(data.data.federal_obligations.active_contracts).toEqual({
+        total_obligated: 0,
+        count: 0,
+      });
+      expect(data.data.federal_obligations.total_contracts).toEqual({
+        total_obligated: 0,
+        count: 0,
+      });
+    });
+  });
+
   describe("error handling", () => {
     it("should handle missing API key", async () => {
       const envWithoutKey: Env = {
