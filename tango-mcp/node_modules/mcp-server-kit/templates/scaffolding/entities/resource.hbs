@@ -1,0 +1,90 @@
+/**
+ * {{capitalizedName}} Resource
+ *
+ * {{description}}
+ *
+ * {{#if hasVariables}}⚠️  DYNAMIC RESOURCE (uses ResourceTemplate)
+ * This resource has template variables: {{variablesJoined}}
+ * URI pattern: {{uriPattern}}{{else}}✓ STATIC RESOURCE (fixed URI)
+ * URI pattern: {{uriPattern}}{{/if}}
+ */
+
+{{#if hasVariables}}import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";{{else}}import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";{{/if}}
+
+/**
+ * Register {{name}} resource with the MCP server
+ */
+export function register{{capitalizedName}}Resource(server: McpServer): void {
+	server.resource(
+		"{{name}}",
+		{{#if hasVariables}}new ResourceTemplate("{{uriPattern}}", {
+			// TODO: Implement list callback to return available resources
+			list: async () => {
+				// Example: return { resources: [{ uri: "...", name: "...", description: "..." }] };
+				return { resources: [] };
+			},
+			// TODO: Implement autocomplete for template variables
+			complete: {
+{{#each variables}}				{{this}}: async (value) => {
+					// Return suggestions for {{this}}
+					return [];
+				}{{#unless @last}},{{/unless}}
+{{/each}}			}
+		}){{else}}"{{uriPattern}}"{{/if}},
+		{
+			description: "{{description}}",
+			mimeType: "application/json", // TODO: Update MIME type as needed
+		},
+		{{#if hasVariables}}async (uri, variables){{else}}async (uri){{/if}} => {
+{{#if hasVariables}}			// Extract parameters from ResourceTemplate variables
+{{#each variables}}			const {{this}} = variables.{{this}} as string;
+{{/each}}{{else}}			// Static resource - no parameters to extract
+			// The uri parameter is a URL object with parsed components{{/if}}
+
+			// TODO: Replace this example data with your actual resource logic
+			// Common patterns:{{#if hasVariables}}
+			// - Read from KV: await env.MY_KV.get({{variables.[0]}})
+			// - Query D1: await env.MY_DB.prepare("SELECT * FROM table WHERE id = ?").bind({{variables.[0]}}).first()
+			// - Fetch external API: await fetch(\`https://api.example.com/$\{{{variables.[0]}}\}\`){{else}}
+			// - Read from KV: await env.MY_KV.get(key)
+			// - Query D1: await env.MY_DB.prepare("SELECT * FROM table WHERE id = ?").bind(id).first()
+			// - Fetch external API: await fetch(\`https://api.example.com/$\{id\}\`){{/if}}
+
+			const exampleData = {{#if hasVariables}}{
+				resource: "{{name}}",
+				uri: uri.href,
+{{#each variables}}				{{this}}: {{this}},
+{{/each}}				message: "Replace this with your actual resource data"
+			}{{else}}{
+				resource: "{{name}}",
+				uri: uri.href,
+				message: "Replace this with your actual resource data"
+			}{{/if}};
+
+			return {
+				contents: [
+					{
+						uri: uri.href,
+						text: JSON.stringify(exampleData, null, 2),
+						mimeType: "application/json",
+					},
+				],
+			};
+
+			// Example: Handle errors
+			// try {
+			//   const data = await fetchResourceData(id);
+			//   return {
+			//     contents: [{
+			//       uri: uri.href,
+			//       text: JSON.stringify(data, null, 2),
+			//       mimeType: "application/json",
+			//     }],
+			//   };
+			// } catch (error) {
+			//   throw new Error(`Failed to load resource: ${error}`);
+			// }
+		},
+	);
+}

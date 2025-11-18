@@ -1,0 +1,343 @@
+/**
+ * {{HELPER_CLASS_NAME}} - KV Namespace Helper
+ *
+ * Type-safe wrapper for Cloudflare KV namespace: {{BINDING_NAME}}
+ *
+ * This helper provides convenient methods for working with KV storage,
+ * including automatic JSON serialization, type safety, and error handling.
+ *
+ * @example
+ * ```typescript
+ * const {{CAMEL_NAME}} = new {{HELPER_CLASS_NAME}}(env.{{BINDING_NAME}});
+ *
+ * // Store data
+ * await {{CAMEL_NAME}}.set('user:123', { name: 'Alice', email: 'alice@example.com' });
+ *
+ * // Retrieve data
+ * const user = await {{CAMEL_NAME}}.get<User>('user:123');
+ *
+ * // Delete data
+ * await {{CAMEL_NAME}}.delete('user:123');
+ *
+ * // List keys
+ * const keys = await {{CAMEL_NAME}}.list({ prefix: 'user:' });
+ * ```
+ */
+
+/**
+ * Options for storing data in KV
+ */
+export interface KVPutOptions {
+	/**
+	 * Time-to-live in seconds (how long until the key expires)
+	 * If not provided, key will not expire
+	 */
+	expirationTtl?: number;
+
+	/**
+	 * Absolute expiration time as Unix timestamp
+	 * If both expirationTtl and expiration are provided, expiration takes precedence
+	 */
+	expiration?: number;
+
+	/**
+	 * Metadata to attach to the key (max 1024 bytes)
+	 * Useful for storing additional information about the value
+	 */
+	metadata?: Record<string, any>;
+}
+
+/**
+ * Options for listing keys
+ */
+export interface KVListOptions {
+	/**
+	 * Only list keys with this prefix
+	 */
+	prefix?: string;
+
+	/**
+	 * Maximum number of keys to return (default: 1000, max: 1000)
+	 */
+	limit?: number;
+
+	/**
+	 * Pagination cursor from previous list operation
+	 */
+	cursor?: string;
+}
+
+/**
+ * Result of a list operation
+ */
+export interface KVListResult {
+	/**
+	 * Array of keys matching the query
+	 */
+	keys: Array<{
+		name: string;
+		expiration?: number;
+		metadata?: Record<string, any>;
+	}>;
+
+	/**
+	 * Whether there are more keys to fetch
+	 */
+	list_complete: boolean;
+
+	/**
+	 * Cursor for fetching next page (if list_complete is false)
+	 */
+	cursor?: string;
+}
+
+/**
+ * Type-safe helper for {{BINDING_NAME}} KV namespace
+ */
+export class {{HELPER_CLASS_NAME}} {
+	constructor(private kv: KVNamespace) {}
+
+	/**
+	 * Get a value from KV storage
+	 *
+	 * @param key - The key to retrieve
+	 * @returns The value, or null if not found
+	 *
+	 * @example
+	 * ```typescript
+	 * const user = await {{CAMEL_NAME}}.get<User>('user:123');
+	 * if (user) {
+	 *   console.log(user.name);
+	 * }
+	 * ```
+	 */
+	async get<T = any>(key: string): Promise<T | null> {
+		return await this.kv.get(key, 'json');
+	}
+
+	/**
+	 * Get a value as text (no JSON parsing)
+	 *
+	 * @param key - The key to retrieve
+	 * @returns The value as text, or null if not found
+	 */
+	async getText(key: string): Promise<string | null> {
+		return await this.kv.get(key, 'text');
+	}
+
+	/**
+	 * Get a value as ArrayBuffer (for binary data)
+	 *
+	 * @param key - The key to retrieve
+	 * @returns The value as ArrayBuffer, or null if not found
+	 */
+	async getArrayBuffer(key: string): Promise<ArrayBuffer | null> {
+		return await this.kv.get(key, 'arrayBuffer');
+	}
+
+	/**
+	 * Get a value as a ReadableStream (for large data)
+	 *
+	 * @param key - The key to retrieve
+	 * @returns The value as a stream, or null if not found
+	 */
+	async getStream(key: string): Promise<ReadableStream | null> {
+		return await this.kv.get(key, 'stream');
+	}
+
+	/**
+	 * Get a value with metadata
+	 *
+	 * @param key - The key to retrieve
+	 * @returns Object with value and metadata, or null if not found
+	 */
+	async getWithMetadata<T = any, M = any>(
+		key: string,
+	): Promise<{ value: T | null; metadata: M | null } | null> {
+		return await this.kv.getWithMetadata(key, 'json');
+	}
+
+	/**
+	 * Store a value in KV storage
+	 *
+	 * @param key - The key to store under
+	 * @param value - The value to store (will be JSON serialized)
+	 * @param options - Storage options (expirationTtl, expiration, metadata)
+	 *
+	 * @example
+	 * ```typescript
+	 * // Store with TTL (expires in 1 hour)
+	 * await {{CAMEL_NAME}}.set('session:abc', { userId: 123 }, { expirationTtl: 3600 });
+	 *
+	 * // Store with absolute expiration (Unix timestamp)
+	 * await {{CAMEL_NAME}}.set('temp:data', data, { expiration: Date.now() / 1000 + 3600 });
+	 *
+	 * // Store with metadata
+	 * await {{CAMEL_NAME}}.set('user:123', user, {
+	 *   metadata: { version: 1, updatedAt: Date.now() }
+	 * });
+	 * ```
+	 */
+	async set<T = any>(
+		key: string,
+		value: T,
+		options: KVPutOptions = {},
+	): Promise<void> {
+		const putOptions: KVPutOptions = {};
+
+		if (options.expirationTtl) {
+			putOptions.expirationTtl = options.expirationTtl;
+		}
+
+		if (options.expiration) {
+			putOptions.expiration = options.expiration;
+		}
+
+		if (options.metadata) {
+			putOptions.metadata = options.metadata;
+		}
+
+		await this.kv.put(key, JSON.stringify(value), putOptions as any);
+	}
+
+	/**
+	 * Store text in KV storage (no JSON serialization)
+	 *
+	 * @param key - The key to store under
+	 * @param value - The text value to store
+	 * @param options - Storage options (expirationTtl, expiration, metadata)
+	 */
+	async setText(
+		key: string,
+		value: string,
+		options: KVPutOptions = {},
+	): Promise<void> {
+		const putOptions: any = {};
+
+		if (options.expirationTtl) {
+			putOptions.expirationTtl = options.expirationTtl;
+		}
+
+		if (options.expiration) {
+			putOptions.expiration = options.expiration;
+		}
+
+		if (options.metadata) {
+			putOptions.metadata = options.metadata;
+		}
+
+		await this.kv.put(key, value, putOptions);
+	}
+
+	/**
+	 * Delete a value from KV storage
+	 *
+	 * @param key - The key to delete
+	 *
+	 * @example
+	 * ```typescript
+	 * await {{CAMEL_NAME}}.delete('session:abc');
+	 * ```
+	 */
+	async delete(key: string): Promise<void> {
+		await this.kv.delete(key);
+	}
+
+	/**
+	 * Delete multiple keys from KV storage
+	 *
+	 * @param keys - Array of keys to delete
+	 *
+	 * @example
+	 * ```typescript
+	 * await {{CAMEL_NAME}}.deleteMany(['session:1', 'session:2', 'session:3']);
+	 * ```
+	 */
+	async deleteMany(keys: string[]): Promise<void> {
+		await Promise.all(keys.map((key) => this.delete(key)));
+	}
+
+	/**
+	 * List keys in KV storage
+	 *
+	 * @param options - List options (prefix, limit, cursor)
+	 * @returns List of keys with pagination info
+	 *
+	 * @example
+	 * ```typescript
+	 * // List all user keys
+	 * const result = await {{CAMEL_NAME}}.list({ prefix: 'user:' });
+	 *
+	 * // Paginate through results
+	 * let cursor: string | undefined;
+	 * do {
+	 *   const result = await {{CAMEL_NAME}}.list({ prefix: 'user:', cursor });
+	 *   console.log(result.keys);
+	 *   cursor = result.cursor;
+	 * } while (!result.list_complete);
+	 * ```
+	 */
+	async list(options: KVListOptions = {}): Promise<KVListResult> {
+		const listOptions: any = {};
+
+		if (options.prefix) {
+			listOptions.prefix = options.prefix;
+		}
+
+		if (options.limit) {
+			listOptions.limit = options.limit;
+		}
+
+		if (options.cursor) {
+			listOptions.cursor = options.cursor;
+		}
+
+		return (await this.kv.list(listOptions)) as KVListResult;
+	}
+
+	/**
+	 * Check if a key exists in KV storage
+	 *
+	 * @param key - The key to check
+	 * @returns True if the key exists, false otherwise
+	 *
+	 * @example
+	 * ```typescript
+	 * if (await {{CAMEL_NAME}}.has('user:123')) {
+	 *   console.log('User exists');
+	 * }
+	 * ```
+	 */
+	async has(key: string): Promise<boolean> {
+		const value = await this.kv.get(key);
+		return value !== null;
+	}
+
+	/**
+	 * List all keys with a given prefix (fetches all pages)
+	 *
+	 * WARNING: This can be slow for large datasets as it fetches all pages.
+	 * Consider using list() with pagination for better performance.
+	 *
+	 * @param prefix - Key prefix to filter by
+	 * @returns Array of all matching keys
+	 *
+	 * @example
+	 * ```typescript
+	 * const allUserKeys = await {{CAMEL_NAME}}.listAll('user:');
+	 * console.log(`Found ${allUserKeys.length} users`);
+	 * ```
+	 */
+	async listAll(prefix?: string): Promise<string[]> {
+		const allKeys: string[] = [];
+		let cursor: string | undefined;
+
+		do {
+			const result = await this.list({ prefix, cursor });
+			allKeys.push(...result.keys.map((k) => k.name));
+			cursor = result.cursor;
+		} while (cursor);
+
+		return allKeys;
+	}
+}

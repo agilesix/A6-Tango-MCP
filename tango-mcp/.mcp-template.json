@@ -1,0 +1,14 @@
+{
+	"id": "cloudflare-remote",
+	"version": "1.0.0",
+	"name": "Cloudflare Workers MCP Server",
+	"mcp_sdk_version": "^1.20.2",
+	"agents_version": "^0.2.17",
+	"scaffolded_at": "2025-11-18T14:06:12.899Z",
+	"variables": {
+		"PROJECT_NAME": "tango-mcp",
+		"DESCRIPTION": "MCP server powered by Cloudflare Workers",
+		"PORT": "8788",
+		"MCP_SERVER_NAME": "tango-mcp"
+	}
+}

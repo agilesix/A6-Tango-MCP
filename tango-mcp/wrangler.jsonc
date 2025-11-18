@@ -1,0 +1,64 @@
+{
+	"name": "tango-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": ["nodejs_compat"],
+	// <mcp-auth:vars>
+	// Auth environment variables will be added here by add-auth command
+	"vars": {
+		"TANGO_API_BASE_URL": "https://tango.makegov.com/api",
+		"CACHE_TTL_SECONDS": "300"
+	},
+	// </mcp-auth:vars>
+	// <mcp-bindings:kv>
+	// KV namespace bindings managed by mcp-server-kit
+	"kv_namespaces": [
+		{
+			"binding": "TANGO_CACHE",
+			"id": "placeholder_id",
+			"preview_id": "placeholder_preview_id"
+		}
+	],
+	// </mcp-bindings:kv>
+	// <mcp-bindings:d1>
+	// D1 database bindings managed by mcp-server-kit
+	// </mcp-bindings:d1>
+	// <mcp-bindings:r2>
+	// R2 bucket bindings managed by mcp-server-kit
+	// </mcp-bindings:r2>
+	// <mcp-bindings:queues:producers>
+	// Queue producer bindings managed by mcp-server-kit
+	// </mcp-bindings:queues:producers>
+	// <mcp-bindings:queues:consumers>
+	// Queue consumer bindings managed by mcp-server-kit
+	// </mcp-bindings:queues:consumers>
+	// <mcp-bindings:ai>
+	// Workers AI binding managed by mcp-server-kit
+	// </mcp-bindings:ai>
+	// <mcp-bindings:vectorize>
+	// Vectorize index bindings managed by mcp-server-kit
+	// </mcp-bindings:vectorize>
+	// <mcp-bindings:hyperdrive>
+	// Hyperdrive config bindings managed by mcp-server-kit
+	// </mcp-bindings:hyperdrive>
+	"observability": {
+		"enabled": true
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MCP_OBJECT",
+				"class_name": "MCPServerAgent"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["MCPServerAgent"]
+		}
+	],
+	"dev": {
+		"port": 8788
+	}
+}

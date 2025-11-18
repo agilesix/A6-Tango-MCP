@@ -1,0 +1,39 @@
+/**
+ * Health Check Tool
+ *
+ * Returns server health status.
+ */
+
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+/**
+ * Register health check tool with the MCP server
+ */
+export function registerHealthTool(server: McpServer): void {
+	server.tool(
+		"health",
+		"Returns the health status of the MCP server",
+		{}, // No parameters
+		async () => {
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								status: "healthy",
+								timestamp: new Date().toISOString(),
+								uptime: process.uptime ? process.uptime() : "N/A",
+								server: "tango-mcp",
+								version: "1.0.0",
+							},
+							null,
+							2,
+						),
+					},
+				],
+			};
+		},
+	);
+}

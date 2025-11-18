@@ -1,0 +1,25 @@
+type: "prompt"
+name: "{{nameWithSpaces}} - Basic"
+description: "{{#if description}}{{description}}{{else}}Verify that {{name}} prompt works correctly{{/if}}"
+prompt: "{{name}}"
+arguments:
+  # TODO: Add test arguments
+  # Example:
+  # language: "python"
+
+assertions:
+  # Verify the prompt request succeeds
+  - type: "success"
+
+  # Check response time (adjust max value as needed)
+  - type: "response_time_ms"
+    max: 5000
+
+  # Example: Verify prompt content contains expected text
+  # - type: "contains_text"
+  #   text: "expected instruction or keyword"
+
+  # Example: Check message structure with JSON path
+  # - type: "json_path"
+  #   path: "$.messages[0].role"
+  #   expected: "user"

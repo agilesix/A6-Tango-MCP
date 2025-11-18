@@ -1,0 +1,14 @@
+name: "Health Check - Basic"
+description: "Verify that health tool returns server status"
+tool: "health"
+arguments: {}
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "contains_text"
+    text: "healthy"
+  - type: "json_path"
+    path: "$.status"
+    expected: "healthy"

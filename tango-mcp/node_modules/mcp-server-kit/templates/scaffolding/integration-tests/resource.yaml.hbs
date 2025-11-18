@@ -1,0 +1,33 @@
+type: "resource"
+name: "{{nameWithSpaces}} - Basic"
+description: "{{#if description}}{{description}}{{else}}Test resource{{/if}}"
+uri: "{{uriPattern}}"
+# Note: URI pattern is "{{uriPattern}}"
+# Adjust the test URI above to use realistic values for your resource
+
+assertions:
+  # Verify the resource read succeeds
+  - type: "success"
+
+  # Check response time (adjust max value as needed)
+  - type: "response_time_ms"
+    max: 5000
+
+  # Example: Verify resource content contains expected text
+  # - type: "contains_text"
+  #   text: "expected data or keyword"
+
+  # Example: Verify resource content structure with JSON path
+  # - type: "json_path"
+  #   path: "$.contents[0].mimeType"
+  #   expected: "application/json"
+
+  # Example: Check if specific fields exist
+  # - type: "json_path"
+  #   path: "$.contents[0].text"
+  #   exists: true
+
+  # Example: Verify content matches pattern
+  # - type: "json_path"
+  #   path: "$.contents[0].uri"
+  #   contains: "{{uriPatternNoVars}}"
