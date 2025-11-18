@@ -102,6 +102,34 @@ export interface SearchContractsArgs {
   set_aside_type?: string;
 
   /**
+   * Filter by exact fiscal year (October 1 - September 30).
+   * Federal fiscal years run from Oct 1 to Sep 30.
+   * For example, FY2024 = Oct 1, 2023 to Sep 30, 2024.
+   *
+   * @example 2024
+   * @example 2023
+   */
+  fiscal_year?: number;
+
+  /**
+   * Filter by fiscal year greater than or equal to.
+   * Use with fiscal_year_end for range queries.
+   *
+   * @example 2020
+   * @example 2022
+   */
+  fiscal_year_start?: number;
+
+  /**
+   * Filter by fiscal year less than or equal to.
+   * Use with fiscal_year_start for range queries.
+   *
+   * @example 2024
+   * @example 2025
+   */
+  fiscal_year_end?: number;
+
+  /**
    * Maximum results to return
    * Default: 10
    * Maximum: 100
@@ -386,13 +414,13 @@ export interface SearchOpportunitiesArgs {
   response_deadline_after?: string;
 
   /**
-   * Filter by opportunity status
-   * Values: 'active', 'inactive', 'closed', 'forecasted'
-   *
-   * @example "active" - Currently accepting responses
-   * @example "forecasted" - Upcoming opportunities
+   * Filter by active status.
+   * - true: Only active opportunities
+   * - false: Only inactive opportunities
+   * - undefined: All opportunities
+   * @example true
    */
-  status?: string;
+  active?: boolean;
 
   /**
    * Notice type code

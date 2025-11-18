@@ -108,4 +108,82 @@ describe("search_tango_opportunities tool", () => {
     expect(data).toHaveProperty("total");
     expect(data).toHaveProperty("execution");
   });
+
+  it("should handle active=true filter", async () => {
+    const { TangoApiClient } = await import("@/api/tango-client");
+    const mockSearchOpportunities = vi.fn().mockResolvedValue({
+      success: true,
+      data: { results: [], total: 0 },
+      status: 200,
+    });
+
+    (TangoApiClient as any).mockImplementation(() => ({
+      searchOpportunities: mockSearchOpportunities,
+    }));
+
+    registerSearchOpportunitiesTool(mockServer, mockEnv);
+    const handler = (mockServer.tool as any).mock.calls[0][3];
+
+    await handler({ active: true, limit: 10 });
+
+    expect(mockSearchOpportunities).toHaveBeenCalledWith(
+      expect.objectContaining({
+        active: true,
+        limit: 10,
+      }),
+      "test-api-key"
+    );
+  });
+
+  it("should handle active=false filter", async () => {
+    const { TangoApiClient } = await import("@/api/tango-client");
+    const mockSearchOpportunities = vi.fn().mockResolvedValue({
+      success: true,
+      data: { results: [], total: 0 },
+      status: 200,
+    });
+
+    (TangoApiClient as any).mockImplementation(() => ({
+      searchOpportunities: mockSearchOpportunities,
+    }));
+
+    registerSearchOpportunitiesTool(mockServer, mockEnv);
+    const handler = (mockServer.tool as any).mock.calls[0][3];
+
+    await handler({ active: false, limit: 10 });
+
+    expect(mockSearchOpportunities).toHaveBeenCalledWith(
+      expect.objectContaining({
+        active: false,
+        limit: 10,
+      }),
+      "test-api-key"
+    );
+  });
+
+  it("should handle active=undefined (all opportunities)", async () => {
+    const { TangoApiClient } = await import("@/api/tango-client");
+    const mockSearchOpportunities = vi.fn().mockResolvedValue({
+      success: true,
+      data: { results: [], total: 0 },
+      status: 200,
+    });
+
+    (TangoApiClient as any).mockImplementation(() => ({
+      searchOpportunities: mockSearchOpportunities,
+    }));
+
+    registerSearchOpportunitiesTool(mockServer, mockEnv);
+    const handler = (mockServer.tool as any).mock.calls[0][3];
+
+    await handler({ limit: 10 });
+
+    // active should not be included in params when undefined
+    expect(mockSearchOpportunities).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        active: expect.anything(),
+      }),
+      "test-api-key"
+    );
+  });
 });

@@ -25,7 +25,7 @@ export function registerSearchContractsTool(
 ): void {
 	server.tool(
 		"search_tango_contracts",
-		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, and set-aside categories. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request.",
+		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request.",
 		{
 			query: z
 				.string()
@@ -80,6 +80,33 @@ export function registerSearchContractsTool(
 				.optional()
 				.describe(
 					"Contract set-aside category. Values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A', 'HUBZone'. Leave empty for all types."
+				),
+			fiscal_year: z
+				.number()
+				.int()
+				.min(1990)
+				.max(2030)
+				.optional()
+				.describe(
+					"Filter by exact federal fiscal year. Format: YYYY. Example: 2024 for FY2024 (Oct 2023 - Sep 2024). Mutually exclusive with fiscal_year_start/end."
+				),
+			fiscal_year_start: z
+				.number()
+				.int()
+				.min(1990)
+				.max(2030)
+				.optional()
+				.describe(
+					"Filter by fiscal year range start (inclusive). Example: 2020 for FY2020 and later. Use with fiscal_year_end for ranges."
+				),
+			fiscal_year_end: z
+				.number()
+				.int()
+				.min(1990)
+				.max(2030)
+				.optional()
+				.describe(
+					"Filter by fiscal year range end (inclusive). Example: 2024 for FY2024 and earlier. Use with fiscal_year_start for ranges."
 				),
 			limit: z
 				.number()
@@ -142,6 +169,78 @@ export function registerSearchContractsTool(
 					params.award_date_lte = sanitized.award_date_end;
 				if (sanitized.set_aside_type)
 					params.set_aside = sanitized.set_aside_type;
+
+				// Fiscal year parameters (map to API's fiscal_year_gte/lte)
+				if (sanitized.fiscal_year) {
+					// Exact year: set both gte and lte to same year
+					params.fiscal_year_gte = sanitized.fiscal_year.toString();
+					params.fiscal_year_lte = sanitized.fiscal_year.toString();
+
+					// Validation: fiscal_year mutually exclusive with start/end
+					if (sanitized.fiscal_year_start || sanitized.fiscal_year_end) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											error: "Parameter conflict",
+											error_code: "INVALID_PARAMETER_COMBINATION",
+											message: "Use either fiscal_year OR fiscal_year_start/end, not both",
+											parameters_provided: {
+												fiscal_year: sanitized.fiscal_year,
+												fiscal_year_start: sanitized.fiscal_year_start,
+												fiscal_year_end: sanitized.fiscal_year_end,
+											},
+											suggestion: "Remove fiscal_year to use range, or remove fiscal_year_start/end to use exact year",
+											recoverable: true,
+										},
+										null,
+										2
+									),
+								},
+							],
+						};
+					}
+				} else {
+					// Range: use start/end
+					if (sanitized.fiscal_year_start) {
+						params.fiscal_year_gte = sanitized.fiscal_year_start.toString();
+					}
+					if (sanitized.fiscal_year_end) {
+						params.fiscal_year_lte = sanitized.fiscal_year_end.toString();
+					}
+
+					// Validation: start <= end
+					if (
+						sanitized.fiscal_year_start &&
+						sanitized.fiscal_year_end &&
+						sanitized.fiscal_year_start > sanitized.fiscal_year_end
+					) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											error: "Invalid fiscal year range",
+											error_code: "INVALID_PARAMETER_VALUE",
+											message: "fiscal_year_start must be <= fiscal_year_end",
+											provided: {
+												fiscal_year_start: sanitized.fiscal_year_start,
+												fiscal_year_end: sanitized.fiscal_year_end,
+											},
+											suggestion: "Swap the values or correct the range",
+											recoverable: true,
+										},
+										null,
+										2
+									),
+								},
+							],
+						};
+					}
+				}
 
 				params.limit = sanitized.limit || 10;
 

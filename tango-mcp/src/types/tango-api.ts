@@ -54,6 +54,9 @@ export interface TangoContractResponse {
   /** Date signed */
   date_signed?: string;
 
+  /** Fiscal year of award (YYYY format) */
+  fiscal_year?: number;
+
   /** NAICS industry classification code */
   naics_code?: string;
   /** NAICS description */
