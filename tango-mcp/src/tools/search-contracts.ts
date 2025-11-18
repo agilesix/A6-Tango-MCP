@@ -13,6 +13,7 @@ import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeContract } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
+import { validateContractOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
 
 /**
@@ -117,6 +118,18 @@ export function registerSearchContractsTool(
 				.optional()
 				.describe(
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+				),
+			ordering: z
+				.string()
+				.optional()
+				.describe(
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'award_date', '-award_date', 'obligated', '-obligated', 'recipient_name', '-recipient_name'. Example: '-award_date' for newest first, '-obligated' for highest value first."
+				),
+			cursor: z
+				.string()
+				.optional()
+				.describe(
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
 				),
 		},
 		async (args) => {
@@ -244,6 +257,45 @@ export function registerSearchContractsTool(
 
 				params.limit = sanitized.limit || 10;
 
+				// Add ordering parameter if provided
+				if (sanitized.ordering) {
+					// Validate ordering parameter
+					if (!validateContractOrdering(sanitized.ordering)) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											error: "Invalid ordering parameter",
+											error_code: "INVALID_PARAMETER_VALUE",
+											message: `Invalid ordering field: ${sanitized.ordering}`,
+											valid_fields: [
+												"award_date",
+												"-award_date",
+												"obligated",
+												"-obligated",
+												"recipient_name",
+												"-recipient_name",
+											],
+											suggestion: "Use one of the valid ordering fields listed above",
+											recoverable: true,
+										},
+										null,
+										2
+									),
+								},
+							],
+						};
+					}
+					params.ordering = sanitized.ordering;
+				}
+
+				// Add cursor parameter if provided
+				if (sanitized.cursor) {
+					params.cursor = sanitized.cursor;
+				}
+
 				// Call Tango API with caching
 				logger.info("Calling Tango API", { endpoint: "searchContracts", params });
 				const client = new TangoApiClient(env, cache);
@@ -282,6 +334,9 @@ export function registerSearchContractsTool(
 					normalizeContract
 				);
 
+				// Extract cursor for next page
+				const nextCursor = extractCursorFromUrl(response.data.next);
+
 				// Build response envelope
 				logger.toolComplete("search_tango_contracts", true, Date.now() - startTime, {
 					returned: normalizedContracts.length,
@@ -295,14 +350,17 @@ export function registerSearchContractsTool(
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more:
+						has_more: !!nextCursor || (
 							normalizedContracts.length >= (sanitized.limit || 10) &&
 							normalizedContracts.length <
-								(response.data.total || response.data.count || 0),
+								(response.data.total || response.data.count || 0)
+						),
+						next_cursor: nextCursor,
+						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
+						cached: response.cache?.hit || false,
 						api_calls: 1,
 					},
 				};
