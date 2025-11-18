@@ -1,5 +1,6 @@
 {
 	"name": "tango-mcp",
+	"account_id": "5387a0d62fcd268ee140a0a9a5a6ea22",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-03-10",
 	"compatibility_flags": ["nodejs_compat"],
@@ -15,7 +16,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "TANGO_CACHE",
-			"id": "placeholder_id",
+			"id": "c4e01c9085ed4059b41ab918992944d4",
 			"preview_id": "placeholder_preview_id"
 		}
 	],
