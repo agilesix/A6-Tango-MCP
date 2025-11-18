@@ -37,3 +37,6 @@ coverage/
 # Misc
 *.tgz
 .cache/
+
+# Working documents (local notes, not for repo)
+working_documents/
