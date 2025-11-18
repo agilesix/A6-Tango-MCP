@@ -490,4 +490,95 @@ describe("TangoApiClient", () => {
       });
     });
   });
+
+  describe("getAgencyContracts", () => {
+    it("should make successful agency contracts request for awarding role", async () => {
+      const mockResponse = {
+        results: [
+          {
+            key: "contract-123",
+            title: "DOD Contract",
+            obligated: 1000000,
+          },
+        ],
+        total: 1,
+        count: 1,
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.getAgencyContracts(
+        "DOD",
+        "awarding",
+        { fiscal_year: 2024 },
+        "test-api-key"
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockResponse);
+      expect(result.status).toBe(200);
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).toContain("/agencies/DOD/contracts/awarding/");
+      expect(callUrl).toContain("fiscal_year=2024");
+    });
+
+    it("should make successful agency contracts request for funding role", async () => {
+      const mockResponse = {
+        results: [],
+        total: 0,
+        count: 0,
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.getAgencyContracts(
+        "GSA",
+        "funding",
+        { limit: 50 },
+        "test-api-key"
+      );
+
+      expect(result.success).toBe(true);
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).toContain("/agencies/GSA/contracts/funding/");
+    });
+
+    it("should throw validation error when agency code is missing", async () => {
+      await expect(
+        client.getAgencyContracts("", "awarding", {}, "test-api-key")
+      ).rejects.toThrow(TangoValidationError);
+    });
+
+    it("should handle agency codes with different formats", async () => {
+      const mockResponse = { results: [], total: 0, count: 0 };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      // Test various agency code formats
+      await client.getAgencyContracts("DOD", "awarding", {}, "test-api-key");
+      await client.getAgencyContracts("7000", "awarding", {}, "test-api-key");
+      await client.getAgencyContracts("ED", "awarding", {}, "test-api-key");
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+
+      const urls = mockFetch.mock.calls.map((call) => call[0] as string);
+      expect(urls[0]).toContain("/agencies/DOD/contracts/awarding/");
+      expect(urls[1]).toContain("/agencies/7000/contracts/awarding/");
+      expect(urls[2]).toContain("/agencies/ED/contracts/awarding/");
+    });
+  });
 });
