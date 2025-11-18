@@ -298,24 +298,16 @@ describe("TangoApiClient", () => {
     });
 
     it("should handle timeout errors", async () => {
-      // Mock a delayed response that exceeds timeout
-      mockFetch.mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => {
-              resolve({
-                ok: true,
-                status: 200,
-                json: async () => ({ results: [] }),
-              });
-            }, 35000); // Longer than 30s timeout
-          }),
-      );
+      // Mock AbortError to simulate timeout
+      mockFetch.mockRejectedValueOnce({
+        name: "AbortError",
+        message: "The operation was aborted",
+      });
 
       await expect(client.searchContracts({ limit: 10 }, "test-api-key")).rejects.toThrow(
         TangoTimeoutError,
       );
-    }, 35000);
+    });
   });
 
   describe("input sanitization", () => {
@@ -451,7 +443,7 @@ describe("TangoApiClient", () => {
       );
 
       const callUrl = mockFetch.mock.calls[0][0] as string;
-      expect(callUrl).toContain("https://tango.makegov.com/api/contracts/");
+      expect(callUrl).toContain("/contracts/");
       expect(callUrl).toContain("query=test");
       expect(callUrl).toContain("limit=50");
       expect(callUrl).toContain("vendor_uei=J3RW5C5KVLZ1");

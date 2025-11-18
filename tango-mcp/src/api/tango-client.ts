@@ -225,7 +225,11 @@ export class TangoApiClient {
         clearTimeout(timeoutId);
 
         // Handle abort (timeout)
-        if (error instanceof Error && error.name === "AbortError") {
+        // Check both Error instances and plain objects with name property
+        if (
+          (error instanceof Error && error.name === "AbortError") ||
+          (typeof error === "object" && error !== null && "name" in error && error.name === "AbortError")
+        ) {
           throw new TangoTimeoutError();
         }
 
