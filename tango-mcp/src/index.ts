@@ -61,27 +61,62 @@ export default {
 
 		// Route: Health check
 		if (url.pathname === "/health") {
-			const healthData = {
+			const healthData: {
+				status: string;
+				service: string;
+				version: string;
+				timestamp: string;
+				environment: string;
+				services: {
+					cache_kv: string;
+					tango_api: string;
+				};
+				cache?: {
+					enabled: boolean;
+					ttl_seconds: number;
+					total_keys?: number;
+					by_tool?: Record<string, number>;
+				};
+			} = {
 				status: "healthy",
 				service: "tango-mcp",
 				version: "1.0.0",
 				timestamp: new Date().toISOString(),
 				environment: env.TANGO_API_BASE_URL ? "configured" : "not_configured",
 				services: {
-					cache_kv: "unknown" as string,
+					cache_kv: "unknown",
 					tango_api: env.TANGO_API_BASE_URL ? "configured" : "not_configured",
 				},
 			};
 
-			// Check KV namespace availability
+			// Check KV namespace availability and get cache statistics
 			try {
 				if (env.TANGO_CACHE) {
 					// Try a simple operation to verify KV is accessible
 					await env.TANGO_CACHE.put("health_check", "ok", { expirationTtl: 60 });
 					const result = await env.TANGO_CACHE.get("health_check");
 					healthData.services.cache_kv = result === "ok" ? "available" : "error";
+
+					// Get cache statistics if KV is available
+					if (result === "ok") {
+						const cache = createCacheManager(env);
+						const stats = await cache.getStats();
+
+						healthData.cache = {
+							enabled: true,
+							ttl_seconds: env.CACHE_TTL_SECONDS
+								? Number.parseInt(env.CACHE_TTL_SECONDS, 10)
+								: 300,
+							total_keys: stats.total_keys,
+							by_tool: stats.by_prefix,
+						};
+					}
 				} else {
 					healthData.services.cache_kv = "not_configured";
+					healthData.cache = {
+						enabled: false,
+						ttl_seconds: 300,
+					};
 				}
 			} catch (error) {
 				healthData.services.cache_kv = "error";
@@ -89,7 +124,7 @@ export default {
 			}
 
 			return new Response(
-				JSON.stringify(healthData),
+				JSON.stringify(healthData, null, 2),
 				{
 					status: healthData.status === "healthy" ? 200 : 503,
 					headers: { "Content-Type": "application/json" },
