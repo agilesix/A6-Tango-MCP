@@ -140,6 +140,30 @@ export interface SearchContractsArgs {
    * @example 100
    */
   limit?: number;
+
+  /**
+   * Field to sort results by
+   * Prefix with '-' for descending order
+   *
+   * Valid fields:
+   * - 'award_date' or '-award_date': Sort by award date
+   * - 'obligated' or '-obligated': Sort by obligated amount
+   * - 'recipient_name' or '-recipient_name': Sort by vendor name
+   *
+   * @example "award_date" - Oldest first
+   * @example "-award_date" - Newest first
+   * @example "-obligated" - Highest amount first
+   */
+  ordering?: string;
+
+  /**
+   * Pagination cursor for fetching next page
+   * Obtained from previous response's next_cursor field
+   * More efficient than offset-based pagination for large datasets
+   *
+   * @example "Y3JlYXRlZD0yMDI0LTAxLTE1VDE1OjMwOjAwLjAwMFo="
+   */
+  cursor?: string;
 }
 
 /**
@@ -292,9 +316,15 @@ export interface SearchGrantsArgs {
 
   /**
    * Field to sort results by
+   * Prefix with '-' for descending order
    *
-   * @example "posted_date" - Sort by posted date
-   * @example "-response_date" - Sort by response deadline (descending)
+   * Valid fields:
+   * - 'posted_date' or '-posted_date': Sort by posted date
+   * - 'response_date' or '-response_date': Sort by response deadline
+   * - 'award_amount' or '-award_amount': Sort by award amount
+   *
+   * @example "posted_date" - Sort by posted date (oldest first)
+   * @example "-response_date" - Sort by response deadline (newest first)
    */
   ordering?: string;
 
@@ -307,6 +337,15 @@ export interface SearchGrantsArgs {
    * @example 50
    */
   limit?: number;
+
+  /**
+   * Pagination cursor for fetching next page
+   * Obtained from previous response's next_cursor field
+   * More efficient than offset-based pagination for large datasets
+   *
+   * @example "Y3JlYXRlZD0yMDI0LTAxLTE1VDE1OjMwOjAwLjAwMFo="
+   */
+  cursor?: string;
 }
 
 /**
@@ -440,6 +479,28 @@ export interface SearchOpportunitiesArgs {
    * @example 25
    */
   limit?: number;
+
+  /**
+   * Field to sort results by
+   * Prefix with '-' for descending order
+   *
+   * Valid fields:
+   * - 'posted_date' or '-posted_date': Sort by posted date
+   * - 'response_deadline' or '-response_deadline': Sort by response deadline
+   *
+   * @example "posted_date" - Oldest first
+   * @example "-response_deadline" - Nearest deadline first
+   */
+  ordering?: string;
+
+  /**
+   * Pagination cursor for fetching next page
+   * Obtained from previous response's next_cursor field
+   * More efficient than offset-based pagination for large datasets
+   *
+   * @example "Y3JlYXRlZD0yMDI0LTAxLTE1VDE1OjMwOjAwLjAwMFo="
+   */
+  cursor?: string;
 }
 
 /**
