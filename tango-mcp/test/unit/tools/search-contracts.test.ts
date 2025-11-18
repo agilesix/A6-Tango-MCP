@@ -65,6 +65,9 @@ describe("search_tango_contracts tool", () => {
       expect(schema).toHaveProperty("award_date_start");
       expect(schema).toHaveProperty("award_date_end");
       expect(schema).toHaveProperty("set_aside_type");
+      expect(schema).toHaveProperty("fiscal_year");
+      expect(schema).toHaveProperty("fiscal_year_start");
+      expect(schema).toHaveProperty("fiscal_year_end");
       expect(schema).toHaveProperty("limit");
     });
   });
@@ -330,6 +333,150 @@ describe("search_tango_contracts tool", () => {
       const data = JSON.parse(result.content[0].text);
       expect(data.error_code).toBe("INTERNAL_ERROR");
       expect(data.recoverable).toBe(false);
+    });
+  });
+
+  describe("fiscal year filtering", () => {
+    it("should map fiscal_year to both gte and lte parameters", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockSearchContracts = vi.fn().mockResolvedValue({
+        success: true,
+        data: { results: [], total: 0 },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        searchContracts: mockSearchContracts,
+      }));
+
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      await handler({
+        fiscal_year: 2024,
+      });
+
+      const callParams = mockSearchContracts.mock.calls[0][0];
+      expect(callParams.fiscal_year_gte).toBe("2024");
+      expect(callParams.fiscal_year_lte).toBe("2024");
+    });
+
+    it("should map fiscal_year_start to gte parameter", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockSearchContracts = vi.fn().mockResolvedValue({
+        success: true,
+        data: { results: [], total: 0 },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        searchContracts: mockSearchContracts,
+      }));
+
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      await handler({
+        fiscal_year_start: 2020,
+      });
+
+      const callParams = mockSearchContracts.mock.calls[0][0];
+      expect(callParams.fiscal_year_gte).toBe("2020");
+      expect(callParams.fiscal_year_lte).toBeUndefined();
+    });
+
+    it("should map fiscal_year_end to lte parameter", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockSearchContracts = vi.fn().mockResolvedValue({
+        success: true,
+        data: { results: [], total: 0 },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        searchContracts: mockSearchContracts,
+      }));
+
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      await handler({
+        fiscal_year_end: 2024,
+      });
+
+      const callParams = mockSearchContracts.mock.calls[0][0];
+      expect(callParams.fiscal_year_gte).toBeUndefined();
+      expect(callParams.fiscal_year_lte).toBe("2024");
+    });
+
+    it("should handle fiscal_year_start and fiscal_year_end together", async () => {
+      const { TangoApiClient } = await import("@/api/tango-client");
+      const mockSearchContracts = vi.fn().mockResolvedValue({
+        success: true,
+        data: { results: [], total: 0 },
+        status: 200,
+      });
+
+      (TangoApiClient as any).mockImplementation(() => ({
+        searchContracts: mockSearchContracts,
+      }));
+
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      await handler({
+        fiscal_year_start: 2020,
+        fiscal_year_end: 2024,
+      });
+
+      const callParams = mockSearchContracts.mock.calls[0][0];
+      expect(callParams.fiscal_year_gte).toBe("2020");
+      expect(callParams.fiscal_year_lte).toBe("2024");
+    });
+
+    it("should reject fiscal_year with fiscal_year_start", async () => {
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      const result = await handler({
+        fiscal_year: 2024,
+        fiscal_year_start: 2020,
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error_code).toBe("INVALID_PARAMETER_COMBINATION");
+      expect(data.message).toContain("Use either fiscal_year OR fiscal_year_start/end");
+      expect(data.recoverable).toBe(true);
+    });
+
+    it("should reject fiscal_year with fiscal_year_end", async () => {
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      const result = await handler({
+        fiscal_year: 2024,
+        fiscal_year_end: 2025,
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error_code).toBe("INVALID_PARAMETER_COMBINATION");
+      expect(data.message).toContain("Use either fiscal_year OR fiscal_year_start/end");
+      expect(data.recoverable).toBe(true);
+    });
+
+    it("should reject fiscal_year_start > fiscal_year_end", async () => {
+      registerSearchContractsTool(mockServer, mockEnv);
+      const handler = (mockServer.tool as any).mock.calls[0][3];
+
+      const result = await handler({
+        fiscal_year_start: 2025,
+        fiscal_year_end: 2020,
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error_code).toBe("INVALID_PARAMETER_VALUE");
+      expect(data.message).toContain("fiscal_year_start must be <= fiscal_year_end");
+      expect(data.recoverable).toBe(true);
     });
   });
 });
