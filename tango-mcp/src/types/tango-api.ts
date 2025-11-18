@@ -170,6 +170,41 @@ export interface TangoGrantListResponse {
 }
 
 /**
+ * Federal obligations data for vendor performance
+ * Primary vendor performance metric from Tango API
+ */
+export interface TangoFederalObligations {
+  /** Active contract obligations */
+  active_contracts?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Total historical contract obligations */
+  total_contracts?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Active subaward obligations */
+  active_subawards?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Total historical subaward obligations */
+  total_subawards?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Active IDV (Indefinite Delivery Vehicle) count */
+  active_idvs?: {
+    count?: number;
+  };
+  /** Total historical IDV count */
+  total_idvs?: {
+    count?: number;
+  };
+}
+
+/**
  * Vendor/Entity profile from Tango API /entities/{uei}/ endpoint
  * Source: SAM.gov
  */
@@ -225,6 +260,9 @@ export interface TangoVendorResponse {
   total_grants?: number;
   /** Total value of all grants */
   total_grant_value?: number;
+
+  /** Federal obligations - primary vendor performance metric */
+  federal_obligations?: TangoFederalObligations;
 }
 
 /**
