@@ -151,6 +151,10 @@ export interface TangoContractListResponse {
   total?: number;
   /** Count of results returned */
   count?: number;
+  /** Next page URL (contains cursor parameter) */
+  next?: string | null;
+  /** Previous page URL */
+  previous?: string | null;
 }
 
 /**
@@ -677,8 +681,10 @@ export interface TangoOpportunityListResponse {
   total?: number;
   /** Count of results returned */
   count?: number;
-  /** Pagination cursor for next page */
-  next?: string;
+  /** Next page URL (contains cursor parameter) */
+  next?: string | null;
+  /** Previous page URL */
+  previous?: string | null;
 }
 
 /**

@@ -13,6 +13,7 @@ import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeGrantOpportunity } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
+import { validateGrantOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
 
 /**
@@ -115,7 +116,7 @@ export function registerSearchGrantsTool(
 				.string()
 				.optional()
 				.describe(
-					"Field to sort results by. Prefix with '-' for descending order. Example: 'posted_date' (oldest first), '-response_date' (latest deadline first)"
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_date', '-response_date', 'award_amount', '-award_amount'. Example: '-response_date' for nearest deadline first."
 				),
 			limit: z
 				.number()
@@ -126,6 +127,12 @@ export function registerSearchGrantsTool(
 				.optional()
 				.describe(
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+				),
+			cursor: z
+				.string()
+				.optional()
+				.describe(
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
 				),
 		},
 		async (args) => {
@@ -185,7 +192,45 @@ export function registerSearchGrantsTool(
 				if (sanitized.funding_instruments)
 					params.funding_instruments = sanitized.funding_instruments;
 				if (sanitized.status) params.status = sanitized.status;
-				if (sanitized.ordering) params.ordering = sanitized.ordering;
+
+				// Add ordering parameter if provided
+				if (sanitized.ordering) {
+					// Validate ordering parameter
+					if (!validateGrantOrdering(sanitized.ordering)) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											error: "Invalid ordering parameter",
+											error_code: "INVALID_PARAMETER_VALUE",
+											message: `Invalid ordering field: ${sanitized.ordering}`,
+											valid_fields: [
+												"posted_date",
+												"-posted_date",
+												"response_date",
+												"-response_date",
+												"award_amount",
+												"-award_amount",
+											],
+											suggestion: "Use one of the valid ordering fields listed above",
+											recoverable: true,
+										},
+										null,
+										2
+									),
+								},
+							],
+						};
+					}
+					params.ordering = sanitized.ordering;
+				}
+
+				// Add cursor parameter if provided
+				if (sanitized.cursor) {
+					params.cursor = sanitized.cursor;
+				}
 
 				params.limit = sanitized.limit || 10;
 
@@ -223,6 +268,9 @@ export function registerSearchGrantsTool(
 					normalizeGrantOpportunity
 				);
 
+				// Extract cursor for next page
+				const nextCursor = extractCursorFromUrl(response.data.next);
+
 				// Build response envelope
 				logger.toolComplete("search_tango_grants", true, Date.now() - startTime, {
 					returned: normalizedOpportunities.length,
@@ -235,12 +283,13 @@ export function registerSearchGrantsTool(
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more: !!response.data.next,
-						next_page: response.data.next || null,
+						has_more: !!nextCursor || !!response.data.next,
+						next_cursor: nextCursor,
+						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
+						cached: response.cache?.hit || false,
 						api_calls: 1,
 					},
 				};

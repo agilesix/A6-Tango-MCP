@@ -13,6 +13,7 @@ import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeOpportunity } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
+import { validateOpportunityOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
 
 /**
@@ -98,6 +99,18 @@ export function registerSearchOpportunitiesTool(
 				.describe(
 					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API."
 				),
+			ordering: z
+				.string()
+				.optional()
+				.describe(
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_deadline', '-response_deadline'. Example: '-response_deadline' for nearest deadline first."
+				),
+			cursor: z
+				.string()
+				.optional()
+				.describe(
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
+				),
 		},
 		async (args) => {
 			const startTime = Date.now();
@@ -147,6 +160,43 @@ export function registerSearchOpportunitiesTool(
 					params.response_deadline_after = sanitized.response_deadline_after;
 				if (sanitized.active !== undefined) params.active = sanitized.active;
 				if (sanitized.notice_type) params.notice_type = sanitized.notice_type;
+
+				// Add ordering parameter if provided
+				if (sanitized.ordering) {
+					// Validate ordering parameter
+					if (!validateOpportunityOrdering(sanitized.ordering)) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											error: "Invalid ordering parameter",
+											error_code: "INVALID_PARAMETER_VALUE",
+											message: `Invalid ordering field: ${sanitized.ordering}`,
+											valid_fields: [
+												"posted_date",
+												"-posted_date",
+												"response_deadline",
+												"-response_deadline",
+											],
+											suggestion: "Use one of the valid ordering fields listed above",
+											recoverable: true,
+										},
+										null,
+										2
+									),
+								},
+							],
+						};
+					}
+					params.ordering = sanitized.ordering;
+				}
+
+				// Add cursor parameter if provided
+				if (sanitized.cursor) {
+					params.cursor = sanitized.cursor;
+				}
 
 				params.limit = sanitized.limit || 10;
 
@@ -205,7 +255,15 @@ export function registerSearchOpportunitiesTool(
 					normalizeOpportunity
 				);
 
+				// Extract cursor for next page
+				const nextCursor = extractCursorFromUrl(response.data.next);
+
 				// Build response envelope
+				logger.toolComplete("search_tango_opportunities", true, Date.now() - startTime, {
+					returned: normalizedOpportunities.length,
+					total: response.data.total || response.data.count,
+				});
+
 				const result = {
 					data: normalizedOpportunities,
 					total: response.data.total || response.data.count || normalizedOpportunities.length,
@@ -213,15 +271,17 @@ export function registerSearchOpportunitiesTool(
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more:
+						has_more: !!nextCursor || (
 							normalizedOpportunities.length >= (sanitized.limit || 10) &&
 							normalizedOpportunities.length <
-								(response.data.total || response.data.count || 0),
-						next_cursor: response.data.next || null,
+								(response.data.total || response.data.count || 0)
+						),
+						next_cursor: nextCursor,
+						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
+						cached: response.cache?.hit || false,
 						api_calls: 1,
 					},
 				};
