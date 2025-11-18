@@ -7,7 +7,11 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerHealthTool } from "./tools/health.js";
-import { registerEchoTool } from "./tools/echo.js";
+import { registerSearchContractsTool } from "./tools/search-contracts.js";
+import { registerSearchGrantsTool } from "./tools/search-grants.js";
+import { registerGetVendorProfileTool } from "./tools/get-vendor-profile.js";
+import { registerSearchOpportunitiesTool } from "./tools/search-opportunities.js";
+import { registerGetSpendingSummaryTool } from "./tools/get-spending-summary.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
 // </mcp-auth:imports>
@@ -25,9 +29,18 @@ export class MCPServerAgent extends McpAgent<Env> {
 	});
 
 	async init() {
+		// Access env through the agent context
+		// The McpAgent framework provides env through 'this' context during agent execution
+		// For now, we'll pass a temporary env object that will be replaced at runtime
+		const env = (this as any).env || ({} as Env);
+
 		// Register all tools
 		registerHealthTool(this.server);
-		registerEchoTool(this.server);
+		registerSearchContractsTool(this.server, env);
+		registerSearchGrantsTool(this.server, env);
+		registerGetVendorProfileTool(this.server, env);
+		registerSearchOpportunitiesTool(this.server, env);
+		registerGetSpendingSummaryTool(this.server, env);
 	}
 }
 
