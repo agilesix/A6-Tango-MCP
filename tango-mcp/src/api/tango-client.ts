@@ -16,10 +16,13 @@
 import type { Env } from "@/types/env";
 import type {
   TangoContractListResponse,
+  TangoContractDetailResponse,
   TangoGrantListResponse,
   TangoGrantOpportunityListResponse,
+  TangoGrantOpportunityDetailResponse,
   TangoVendorResponse,
   TangoOpportunityListResponse,
+  TangoOpportunityDetailResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -188,6 +191,48 @@ export class TangoApiClient {
     apiKey: string,
   ): Promise<ApiResponse<TangoOpportunityListResponse>> {
     return this.get<TangoOpportunityListResponse>("/opportunities/", params, apiKey);
+  }
+
+  /**
+   * Get contract detail by key/award ID
+   *
+   * @param contractKey Contract key/award ID (e.g., "CONT_AWD_xxxxx")
+   * @param apiKey Tango API key
+   * @returns Contract detail information
+   */
+  async getContractDetail(
+    contractKey: string,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoContractDetailResponse>> {
+    return this.get<TangoContractDetailResponse>(`/contracts/${contractKey}/`, {}, apiKey);
+  }
+
+  /**
+   * Get grant opportunity detail by grant ID
+   *
+   * @param grantId Grant opportunity ID (numeric)
+   * @param apiKey Tango API key
+   * @returns Grant opportunity detail information
+   */
+  async getGrantDetail(
+    grantId: number,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoGrantOpportunityDetailResponse>> {
+    return this.get<TangoGrantOpportunityDetailResponse>(`/grants/${grantId}/`, {}, apiKey);
+  }
+
+  /**
+   * Get opportunity detail by opportunity ID
+   *
+   * @param opportunityId Opportunity ID (UUID string)
+   * @param apiKey Tango API key
+   * @returns Opportunity detail information
+   */
+  async getOpportunityDetail(
+    opportunityId: string,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoOpportunityDetailResponse>> {
+    return this.get<TangoOpportunityDetailResponse>(`/opportunities/${opportunityId}/`, {}, apiKey);
   }
 
   /**

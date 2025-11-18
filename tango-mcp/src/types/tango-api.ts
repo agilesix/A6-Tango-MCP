@@ -577,6 +577,33 @@ export interface TangoVendorSubawardHistoryItem {
 }
 
 /**
+ * Contract detail response from Tango API /contracts/{key}/ endpoint
+ * Returns comprehensive contract details including all fields from list view plus additional data
+ */
+export interface TangoContractDetailResponse extends TangoContractResponse {
+  /** All standard contract fields are included */
+  [key: string]: any;
+}
+
+/**
+ * Grant opportunity detail response from Tango API /grants/{grant_id}/ endpoint
+ * Returns comprehensive grant opportunity details
+ */
+export interface TangoGrantOpportunityDetailResponse extends TangoGrantOpportunityResponse {
+  /** All standard grant opportunity fields are included */
+  [key: string]: any;
+}
+
+/**
+ * Opportunity detail response from Tango API /opportunities/{opportunity_id}/ endpoint
+ * Returns comprehensive opportunity details
+ */
+export interface TangoOpportunityDetailResponse extends TangoOpportunityResponse {
+  /** All standard opportunity fields are included */
+  [key: string]: any;
+}
+
+/**
  * Generic API response wrapper
  */
 export interface TangoApiResponse<T> {
