@@ -1,0 +1,10 @@
+name: "Get Agency Analytics - Parameter Validation"
+description: "Verify get_tango_agency_analytics validates required agency_code parameter (MCP-level validation)"
+tool: "get_tango_agency_analytics"
+arguments: {}
+
+assertions:
+  - type: "contains_text"
+    text: "Input validation error"
+  - type: "contains_text"
+    text: "agency_code"

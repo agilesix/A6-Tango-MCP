@@ -1,0 +1,10 @@
+name: "Get Grant Detail - Parameter Validation"
+description: "Verify get_tango_grant_detail validates required grant_id parameter (MCP-level validation)"
+tool: "get_tango_grant_detail"
+arguments: {}
+
+assertions:
+  - type: "contains_text"
+    text: "Input validation error"
+  - type: "contains_text"
+    text: "grant_id"

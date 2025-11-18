@@ -1,0 +1,10 @@
+name: "Get Opportunity Detail - Parameter Validation"
+description: "Verify get_tango_opportunity_detail validates required opportunity_id parameter (MCP-level validation)"
+tool: "get_tango_opportunity_detail"
+arguments: {}
+
+assertions:
+  - type: "contains_text"
+    text: "Input validation error"
+  - type: "contains_text"
+    text: "opportunity_id"

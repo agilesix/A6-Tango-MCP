@@ -1,0 +1,10 @@
+name: "Get Contract Detail - Parameter Validation"
+description: "Verify get_tango_contract_detail validates required contract_key parameter (MCP-level validation)"
+tool: "get_tango_contract_detail"
+arguments: {}
+
+assertions:
+  - type: "contains_text"
+    text: "Input validation error"
+  - type: "contains_text"
+    text: "contract_key"
