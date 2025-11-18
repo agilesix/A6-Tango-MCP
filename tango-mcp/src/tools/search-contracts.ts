@@ -25,7 +25,7 @@ export function registerSearchContractsTool(
 ): void {
 	server.tool(
 		"search_tango_contracts",
-		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request.",
+		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
 		{
 			query: z
 				.string()
@@ -117,6 +117,13 @@ export function registerSearchContractsTool(
 				.optional()
 				.describe(
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+				),
+			export_format: z
+				.enum(["json", "csv"])
+				.default("json")
+				.optional()
+				.describe(
+					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API."
 				),
 		},
 		async (args) => {
@@ -244,6 +251,11 @@ export function registerSearchContractsTool(
 
 				params.limit = sanitized.limit || 10;
 
+				// Add format parameter for CSV export if requested
+				if (sanitized.export_format) {
+					params.format = sanitized.export_format;
+				}
+
 				// Call Tango API with caching
 				logger.info("Calling Tango API", { endpoint: "searchContracts", params });
 				const client = new TangoApiClient(env, cache);
@@ -277,7 +289,25 @@ export function registerSearchContractsTool(
 					};
 				}
 
-				// Normalize results
+				// Handle CSV format response
+				if (response.format === 'csv') {
+					const csvData = response.data as unknown as string;
+					logger.toolComplete("search_tango_contracts", true, Date.now() - startTime, {
+						format: "csv",
+						csv_length: csvData.length,
+					});
+
+					return {
+						content: [
+							{
+								type: "text",
+								text: csvData,
+							},
+						],
+					};
+				}
+
+				// Normalize results (JSON format)
 				const normalizedContracts = (response.data.results || []).map(
 					normalizeContract
 				);

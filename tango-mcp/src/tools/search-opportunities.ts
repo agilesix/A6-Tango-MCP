@@ -25,7 +25,7 @@ export function registerSearchOpportunitiesTool(
 ): void {
 	server.tool(
 		"search_tango_opportunities",
-		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status (boolean: true/false/undefined), and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request.",
+		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status (boolean: true/false/undefined), and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
 		{
 			query: z
 				.string()
@@ -91,6 +91,13 @@ export function registerSearchOpportunitiesTool(
 				.describe(
 					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
 				),
+			export_format: z
+				.enum(["json", "csv"])
+				.default("json")
+				.optional()
+				.describe(
+					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API."
+				),
 		},
 		async (args) => {
 			const startTime = Date.now();
@@ -143,6 +150,11 @@ export function registerSearchOpportunitiesTool(
 
 				params.limit = sanitized.limit || 10;
 
+				// Add format parameter for CSV export if requested
+				if (sanitized.export_format) {
+					params.format = sanitized.export_format;
+				}
+
 				// Call Tango API with caching
 				const client = new TangoApiClient(env, cache);
 				const response = await client.searchOpportunities(params, apiKey);
@@ -170,7 +182,25 @@ export function registerSearchOpportunitiesTool(
 					};
 				}
 
-				// Normalize results
+				// Handle CSV format response
+				if (response.format === 'csv') {
+					const csvData = response.data as unknown as string;
+					logger.toolComplete("search_tango_opportunities", true, Date.now() - startTime, {
+						format: "csv",
+						csv_length: csvData.length,
+					});
+
+					return {
+						content: [
+							{
+								type: "text",
+								text: csvData,
+							},
+						],
+					};
+				}
+
+				// Normalize results (JSON format)
 				const normalizedOpportunities = (response.data.results || []).map(
 					normalizeOpportunity
 				);
