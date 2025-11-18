@@ -11,12 +11,17 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeGrant } from "@/utils/normalizer";
+import type { CacheManager } from "@/cache/kv-cache";
 import { z } from "zod";
 
 /**
  * Register search grants tool with the MCP server
  */
-export function registerSearchGrantsTool(server: McpServer, env: Env): void {
+export function registerSearchGrantsTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager
+): void {
 	server.tool(
 		"search_tango_grants",
 		"Search federal grants and financial assistance awards from USASpending through Tango's unified API. Returns grant details including recipient information (name, UEI, type), agency details, award amounts, CFDA numbers, and project information. Supports filtering by: free-text search, awarding agency, CFDA number, date ranges. Client-side filtering for recipient name/UEI and award amount ranges. Useful for finding grants by recipient, agency grant distribution analysis, and research funding opportunities. Maximum 100 results per request.",
@@ -129,8 +134,8 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 				// Request more results for client-side filtering
 				params.limit = sanitized.limit || 10;
 
-				// Call Tango API
-				const client = new TangoApiClient(env);
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
 				const response = await client.searchGrants(params, apiKey);
 
 				// Handle API error
@@ -216,8 +221,8 @@ export function registerSearchGrantsTool(server: McpServer, env: Env): void {
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
-						api_calls: 1,
+						cached: response.cache?.hit || false,
+						api_calls: response.cache?.hit ? 0 : 1,
 					},
 				};
 

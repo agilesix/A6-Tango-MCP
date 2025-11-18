@@ -11,12 +11,17 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeVendor } from "@/utils/normalizer";
+import type { CacheManager } from "@/cache/kv-cache";
 import { z } from "zod";
 
 /**
  * Register get vendor profile tool with the MCP server
  */
-export function registerGetVendorProfileTool(server: McpServer, env: Env): void {
+export function registerGetVendorProfileTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager
+): void {
 	server.tool(
 		"get_tango_vendor_profile",
 		"Retrieve comprehensive entity profile from SAM.gov data through Tango's unified API. Returns detailed vendor information including legal business name, DUNS, CAGE code, registration status, business types, physical/mailing addresses, points of contact, NAICS/PSC codes, certifications, and performance summary (total contracts/grants and values). Required parameter: vendor UEI (Unique Entity Identifier). Useful for vendor due diligence, capability assessment, and contact information lookup.",
@@ -89,8 +94,8 @@ export function registerGetVendorProfileTool(server: McpServer, env: Env): void 
 					};
 				}
 
-				// Call Tango API
-				const client = new TangoApiClient(env);
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
 				let apiCalls = 0;
 
 				// Get main vendor profile
@@ -98,7 +103,7 @@ export function registerGetVendorProfileTool(server: McpServer, env: Env): void 
 					sanitized.uei,
 					apiKey
 				);
-				apiCalls++;
+				apiCalls += response.cache?.hit ? 0 : 1;
 
 				// Handle API error
 				if (!response.success || !response.data) {
@@ -135,7 +140,7 @@ export function registerGetVendorProfileTool(server: McpServer, env: Env): void 
 					filters: sanitized,
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
+						cached: response.cache?.hit || false,
 						api_calls: apiCalls,
 					},
 				};

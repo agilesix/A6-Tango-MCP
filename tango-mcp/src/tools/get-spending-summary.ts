@@ -11,12 +11,17 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeContract } from "@/utils/normalizer";
+import type { CacheManager } from "@/cache/kv-cache";
 import { z } from "zod";
 
 /**
  * Register get spending summary tool with the MCP server
  */
-export function registerGetSpendingSummaryTool(server: McpServer, env: Env): void {
+export function registerGetSpendingSummaryTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager
+): void {
 	server.tool(
 		"get_tango_spending_summary",
 		"Generate aggregated spending analytics from federal contracts and grants through Tango's unified API. Returns total spending, contract/grant counts, and breakdowns by agency, vendor, NAICS code, PSC code, or month. Supports filtering by: awarding agency, vendor UEI, fiscal year, and award type (contracts/grants/all). Aggregation dimensions: 'agency' (by awarding agency), 'vendor' (by recipient), 'naics' (by industry code), 'psc' (by product/service code), 'month' (by award month). Useful for spending analysis, budget tracking, market sizing, and trend identification. Maximum 100 contracts analyzed per request.",
@@ -112,8 +117,8 @@ export function registerGetSpendingSummaryTool(server: McpServer, env: Env): voi
 
 				params.limit = sanitized.limit || 100;
 
-				// Call Tango API
-				const client = new TangoApiClient(env);
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
 				const response = await client.searchContracts(params, apiKey);
 
 				// Handle API error
@@ -222,8 +227,8 @@ export function registerGetSpendingSummaryTool(server: McpServer, env: Env): voi
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
-						api_calls: 1,
+						cached: response.cache?.hit || false,
+						api_calls: response.cache?.hit ? 0 : 1,
 					},
 				};
 

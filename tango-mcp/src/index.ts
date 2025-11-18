@@ -12,6 +12,7 @@ import { registerSearchGrantsTool } from "./tools/search-grants.js";
 import { registerGetVendorProfileTool } from "./tools/get-vendor-profile.js";
 import { registerSearchOpportunitiesTool } from "./tools/search-opportunities.js";
 import { registerGetSpendingSummaryTool } from "./tools/get-spending-summary.js";
+import { createCacheManager } from "./cache/kv-cache.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
 // </mcp-auth:imports>
@@ -34,13 +35,16 @@ export class MCPServerAgent extends McpAgent<Env> {
 		// For now, we'll pass a temporary env object that will be replaced at runtime
 		const env = (this as any).env || ({} as Env);
 
+		// Initialize cache manager
+		const cache = env.TANGO_CACHE ? createCacheManager(env) : undefined;
+
 		// Register all tools
 		registerHealthTool(this.server);
-		registerSearchContractsTool(this.server, env);
-		registerSearchGrantsTool(this.server, env);
-		registerGetVendorProfileTool(this.server, env);
-		registerSearchOpportunitiesTool(this.server, env);
-		registerGetSpendingSummaryTool(this.server, env);
+		registerSearchContractsTool(this.server, env, cache);
+		registerSearchGrantsTool(this.server, env, cache);
+		registerGetVendorProfileTool(this.server, env, cache);
+		registerSearchOpportunitiesTool(this.server, env, cache);
+		registerGetSpendingSummaryTool(this.server, env, cache);
 	}
 }
 

@@ -11,12 +11,17 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeContract } from "@/utils/normalizer";
+import type { CacheManager } from "@/cache/kv-cache";
 import { z } from "zod";
 
 /**
  * Register search contracts tool with the MCP server
  */
-export function registerSearchContractsTool(server: McpServer, env: Env): void {
+export function registerSearchContractsTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager
+): void {
 	server.tool(
 		"search_tango_contracts",
 		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, industry classifications (NAICS/PSC), date ranges, and set-aside categories. Useful for finding contracts by vendor, agency spending analysis, market research, and competitor analysis. Maximum 100 results per request.",
@@ -134,8 +139,8 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 
 				params.limit = sanitized.limit || 10;
 
-				// Call Tango API
-				const client = new TangoApiClient(env);
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
 				const response = await client.searchContracts(params, apiKey);
 
 				// Handle API error
@@ -181,8 +186,8 @@ export function registerSearchContractsTool(server: McpServer, env: Env): void {
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
-						api_calls: 1,
+						cached: response.cache?.hit || false,
+						api_calls: response.cache?.hit ? 0 : 1,
 					},
 				};
 

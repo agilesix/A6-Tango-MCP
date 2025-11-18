@@ -11,12 +11,17 @@ import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeOpportunity } from "@/utils/normalizer";
+import type { CacheManager } from "@/cache/kv-cache";
 import { z } from "zod";
 
 /**
  * Register search opportunities tool with the MCP server
  */
-export function registerSearchOpportunitiesTool(server: McpServer, env: Env): void {
+export function registerSearchOpportunitiesTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager
+): void {
 	server.tool(
 		"search_tango_opportunities",
 		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status, and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request.",
@@ -134,8 +139,8 @@ export function registerSearchOpportunitiesTool(server: McpServer, env: Env): vo
 
 				params.limit = sanitized.limit || 10;
 
-				// Call Tango API
-				const client = new TangoApiClient(env);
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
 				const response = await client.searchOpportunities(params, apiKey);
 
 				// Handle API error
@@ -182,8 +187,8 @@ export function registerSearchOpportunitiesTool(server: McpServer, env: Env): vo
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: false,
-						api_calls: 1,
+						cached: response.cache?.hit || false,
+						api_calls: response.cache?.hit ? 0 : 1,
 					},
 				};
 
