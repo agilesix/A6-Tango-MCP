@@ -10,6 +10,7 @@ import { registerHealthTool } from "./tools/health.js";
 import { registerSearchContractsTool } from "./tools/search-contracts.js";
 import { registerSearchGrantsTool } from "./tools/search-grants.js";
 import { registerGetVendorProfileTool } from "./tools/get-vendor-profile.js";
+import { registerSearchOpportunitiesTool } from "./tools/search-opportunities.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
 // </mcp-auth:imports>
@@ -32,6 +33,7 @@ export class MCPServerAgent extends McpAgent<Env> {
 		registerSearchContractsTool(this.server);
 		registerSearchGrantsTool(this.server);
 		registerGetVendorProfileTool(this.server);
+		registerSearchOpportunitiesTool(this.server);
 	}
 }
 
