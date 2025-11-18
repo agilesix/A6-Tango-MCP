@@ -12,6 +12,7 @@ import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeOpportunity } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -93,8 +94,11 @@ export function registerSearchOpportunitiesTool(
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("search_tango_opportunities", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
@@ -187,8 +191,8 @@ export function registerSearchOpportunitiesTool(
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: response.cache?.hit || false,
-						api_calls: response.cache?.hit ? 0 : 1,
+						cached: false,
+						api_calls: 1,
 					},
 				};
 

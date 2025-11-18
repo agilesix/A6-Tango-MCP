@@ -12,6 +12,7 @@ import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import { normalizeVendor } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
+import { getLogger } from "@/utils/logger";
 import { z } from "zod";
 
 /**
@@ -43,8 +44,11 @@ export function registerGetVendorProfileTool(
 		},
 		async (args) => {
 			const startTime = Date.now();
+			const logger = getLogger();
 
 			try {
+				logger.toolInvocation("get_tango_vendor_profile", args, startTime);
+
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
 
@@ -103,7 +107,7 @@ export function registerGetVendorProfileTool(
 					sanitized.uei,
 					apiKey
 				);
-				apiCalls += response.cache?.hit ? 0 : 1;
+				apiCalls++;
 
 				// Handle API error
 				if (!response.success || !response.data) {
@@ -140,7 +144,7 @@ export function registerGetVendorProfileTool(
 					filters: sanitized,
 					execution: {
 						duration_ms: Date.now() - startTime,
-						cached: response.cache?.hit || false,
+						cached: false,
 						api_calls: apiCalls,
 					},
 				};

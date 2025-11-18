@@ -1,0 +1,87 @@
+name: "Search Opportunities - Basic Query"
+description: "Verify search_tango_opportunities returns opportunity data with basic search"
+tool: "search_tango_opportunities"
+arguments:
+  query: "cybersecurity"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.total"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.returned"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.filters.query"
+    expected: "cybersecurity"
+
+---
+name: "Search Opportunities - Active Only"
+description: "Verify search_tango_opportunities filters by active status"
+tool: "search_tango_opportunities"
+arguments:
+  active: true
+  limit: 10
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.filters.active"
+    expected: true
+
+---
+name: "Search Opportunities - Date Range"
+description: "Verify search_tango_opportunities filters by posted date range"
+tool: "search_tango_opportunities"
+arguments:
+  posted_date_after: "2024-01-01"
+  posted_date_before: "2024-12-31"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.posted_date_after"
+    expected: "2024-01-01"
+  - type: "json_path"
+    path: "$.filters.posted_date_before"
+    expected: "2024-12-31"
+
+---
+name: "Search Opportunities - Missing API Key"
+description: "Verify search_tango_opportunities handles missing API key error"
+tool: "search_tango_opportunities"
+arguments:
+  query: "test"
+skip_api_key: true
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_API_KEY"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_API_KEY"
+
+---
+name: "Search Opportunities - NAICS Filter"
+description: "Verify search_tango_opportunities filters by NAICS code"
+tool: "search_tango_opportunities"
+arguments:
+  naics_code: "541512"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.naics_code"
+    expected: "541512"

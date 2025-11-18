@@ -1,0 +1,79 @@
+name: "Get Vendor Profile - Valid UEI"
+description: "Verify get_tango_vendor_profile returns vendor data for valid UEI"
+tool: "get_tango_vendor_profile"
+arguments:
+  uei: "J3RW5C5KVLZ1"
+  include_history: false
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "object"
+  - type: "json_path"
+    path: "$.data.uei"
+    expected_type: "string"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"
+
+---
+name: "Get Vendor Profile - With History"
+description: "Verify get_tango_vendor_profile includes contract history when requested"
+tool: "get_tango_vendor_profile"
+arguments:
+  uei: "J3RW5C5KVLZ1"
+  include_history: true
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "object"
+  - type: "json_path"
+    path: "$.execution.api_calls"
+    expected_type: "number"
+
+---
+name: "Get Vendor Profile - Missing UEI"
+description: "Verify get_tango_vendor_profile handles missing required parameter"
+tool: "get_tango_vendor_profile"
+arguments: {}
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_PARAMETER"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_PARAMETER"
+  - type: "json_path"
+    path: "$.parameter"
+    expected: "uei"
+
+---
+name: "Get Vendor Profile - Invalid UEI Format"
+description: "Verify get_tango_vendor_profile validates UEI format"
+tool: "get_tango_vendor_profile"
+arguments:
+  uei: "INVALID"
+
+assertions:
+  - type: "contains_text"
+    text: "error"
+
+---
+name: "Get Vendor Profile - Missing API Key"
+description: "Verify get_tango_vendor_profile handles missing API key error"
+tool: "get_tango_vendor_profile"
+arguments:
+  uei: "J3RW5C5KVLZ1"
+skip_api_key: true
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_API_KEY"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_API_KEY"
