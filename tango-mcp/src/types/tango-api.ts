@@ -97,8 +97,113 @@ export interface TangoContractListResponse {
 }
 
 /**
- * Grant response from Tango API /grants/ endpoint
- * Source: USASpending.gov
+ * Grant opportunity response from Tango API /grants/ endpoint
+ * Source: Grants.gov (pre-award opportunities)
+ *
+ * This endpoint returns grant opportunities from Grants.gov, NOT
+ * USASpending awards. These are pre-award opportunities available
+ * for application, not post-award data.
+ */
+export interface TangoGrantOpportunityResponse {
+  /** Internal grant opportunity ID */
+  grant_id?: number;
+
+  /** Grants.gov opportunity number (e.g., "DOTBAB01062025") */
+  opportunity_number?: string;
+
+  /** Agency code (e.g., "DOT-DOT X-50") */
+  agency_code?: string | null;
+
+  /** Opportunity status */
+  status?: {
+    code?: string;
+    description?: string;
+  };
+
+  /** Opportunity title */
+  title?: string;
+
+  /** Detailed description */
+  description?: string | null;
+
+  /** Important dates for the opportunity */
+  important_dates?: {
+    posted_date?: string;
+    response_date?: string;
+    close_date?: string;
+    archive_date?: string;
+    estimated_project_start_date?: string;
+    estimated_project_end_date?: string;
+  };
+
+  /** Opportunity category */
+  category?: {
+    code?: string;
+    description?: string;
+  };
+
+  /** Array of CFDA numbers with titles */
+  cfda_numbers?: Array<{
+    number?: string;
+    title?: string;
+  }>;
+
+  /** Types of eligible applicants */
+  applicant_types?: Array<{
+    code?: string;
+    description?: string;
+  }>;
+
+  /** Applicant eligibility description */
+  applicant_eligibility_description?: string | null;
+
+  /** Funding activity categories */
+  funding_categories?: Array<{
+    code?: string;
+    description?: string;
+  }>;
+
+  /** Funding activity category description */
+  funding_activity_category_description?: string | null;
+
+  /** Funding instrument types */
+  funding_instruments?: Array<{
+    code?: string;
+    description?: string;
+  }>;
+
+  /** Funding details */
+  funding_details?: {
+    award_ceiling?: number | null;
+    award_floor?: number | null;
+    estimated_total_funding?: number | null;
+    expected_number_of_awards?: number | null;
+  };
+
+  /** Grantor contact information */
+  grantor_contact?: {
+    name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  };
+
+  /** Additional information */
+  additional_info?: {
+    url?: string | null;
+    text?: string | null;
+  };
+
+  /** Last updated timestamp */
+  last_updated?: string;
+}
+
+/**
+ * Legacy grant response interface (DEPRECATED)
+ *
+ * This interface was based on a misunderstanding that /api/grants/
+ * returned USASpending awards. It actually returns Grants.gov opportunities.
+ *
+ * @deprecated Use TangoGrantOpportunityResponse instead
  */
 export interface TangoGrantResponse {
   /** Federal Award Identification Number */
@@ -158,7 +263,24 @@ export interface TangoGrantResponse {
 }
 
 /**
- * Pagination response wrapper for grant searches
+ * Pagination response wrapper for grant opportunity searches
+ */
+export interface TangoGrantOpportunityListResponse {
+  /** Array of grant opportunity results */
+  results: TangoGrantOpportunityResponse[];
+  /** Total number of results available */
+  total?: number;
+  /** Count of results returned */
+  count?: number;
+  /** Next page URL */
+  next?: string | null;
+  /** Previous page URL */
+  previous?: string | null;
+}
+
+/**
+ * Legacy pagination response wrapper
+ * @deprecated Use TangoGrantOpportunityListResponse instead
  */
 export interface TangoGrantListResponse {
   /** Array of grant results */
