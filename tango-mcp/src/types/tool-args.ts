@@ -140,6 +140,20 @@ export interface SearchContractsArgs {
    * @example 100
    */
   limit?: number;
+
+  /**
+   * Export format for search results
+   * Default: 'json'
+   *
+   * - 'json': Returns structured JSON data (default)
+   * - 'csv': Returns comma-separated values format suitable for Excel/spreadsheets
+   *
+   * Note: CSV format returns raw CSV string from the API. JSON format returns normalized objects.
+   *
+   * @example "json"
+   * @example "csv"
+   */
+  export_format?: 'json' | 'csv';
 }
 
 /**
@@ -307,6 +321,17 @@ export interface SearchGrantsArgs {
    * @example 50
    */
   limit?: number;
+
+  /**
+   * Export format for search results
+   * Default: 'json'
+   *
+   * Note: CSV export is NOT supported for grants endpoint. This parameter will be ignored.
+   * The Tango API does not provide CSV format for grant opportunities.
+   *
+   * @example "json"
+   */
+  export_format?: 'json' | 'csv';
 }
 
 /**
@@ -440,6 +465,20 @@ export interface SearchOpportunitiesArgs {
    * @example 25
    */
   limit?: number;
+
+  /**
+   * Export format for search results
+   * Default: 'json'
+   *
+   * - 'json': Returns structured JSON data (default)
+   * - 'csv': Returns comma-separated values format suitable for Excel/spreadsheets
+   *
+   * Note: CSV format returns raw CSV string from the API. JSON format returns normalized objects.
+   *
+   * @example "json"
+   * @example "csv"
+   */
+  export_format?: 'json' | 'csv';
 }
 
 /**

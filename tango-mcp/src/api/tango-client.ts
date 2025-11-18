@@ -51,6 +51,8 @@ export interface ApiResponse<T> {
     /** Cache key used (if applicable) */
     key?: string;
   };
+  /** Format of the response data ('json' or 'csv') */
+  format?: 'json' | 'csv';
 }
 
 /**
@@ -263,11 +265,26 @@ export class TangoApiClient {
           return this.handleErrorResponse(response);
         }
 
-        // Parse JSON response
-        const data = (await response.json()) as T;
+        // Determine response format from Content-Type header
+        const contentType = response.headers?.get("Content-Type") || "";
+        const isCSV = contentType.includes("text/csv");
 
-        // Cache successful responses
-        if (this.cache && cacheKey) {
+        // Parse response based on content type
+        let data: T;
+        let format: 'json' | 'csv' = 'json';
+
+        if (isCSV) {
+          // For CSV responses, return the raw text as data
+          data = (await response.text()) as unknown as T;
+          format = 'csv';
+        } else {
+          // Parse JSON response
+          data = (await response.json()) as T;
+          format = 'json';
+        }
+
+        // Cache successful responses (only cache JSON for now, not CSV)
+        if (this.cache && cacheKey && !isCSV) {
           await this.cache.set(cacheKey, data);
         }
 
@@ -275,6 +292,7 @@ export class TangoApiClient {
           success: true,
           data,
           status: response.status,
+          format,
           cache: this.cache
             ? {
                 hit: false,
