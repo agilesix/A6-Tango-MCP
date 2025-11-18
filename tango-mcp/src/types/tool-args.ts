@@ -117,12 +117,12 @@ export interface SearchContractsArgs {
 /**
  * Arguments for search_tango_grants tool
  *
- * Searches federal grants and financial assistance awards.
- * Client-side filtering applied for recipient and amount ranges.
+ * Searches grant opportunities from Grants.gov (pre-award opportunities).
+ * These are opportunities available for application, NOT post-award data.
  */
 export interface SearchGrantsArgs {
   /**
-   * Free-text search across grant descriptions and titles
+   * Free-text search across opportunity titles and descriptions
    *
    * @example "education"
    * @example "research"
@@ -131,31 +131,36 @@ export interface SearchGrantsArgs {
   query?: string;
 
   /**
-   * Awarding agency name or code
+   * Awarding agency abbreviation
    *
-   * @example "Department of Education"
-   * @example "ED"
-   * @example "National Science Foundation"
-   * @example "NSF"
+   * @example "ED" - Department of Education
+   * @example "NSF" - National Science Foundation
+   * @example "HHS" - Health and Human Services
    */
   agency?: string;
 
   /**
-   * Recipient organization name (client-side filtering)
-   * Case-insensitive partial match
+   * NAICS industry classification code (2-6 digits)
    *
-   * @example "Stanford University"
-   * @example "City of Boston"
+   * @example "541512" - Computer systems design services
+   * @example "611" - Educational services
    */
-  recipient_name?: string;
+  naics_code?: string;
 
   /**
-   * Recipient Unique Entity Identifier (client-side filtering)
-   * 12-character alphanumeric
+   * Product/Service Code
    *
-   * @example "A1B2C3D4E5F6"
+   * @example "R425" - Support - professional: engineering/technical
    */
-  recipient_uei?: string;
+  psc_code?: string;
+
+  /**
+   * Awarding agency name or code
+   *
+   * @example "Department of Education"
+   * @example "ED"
+   */
+  awarding_agency?: string;
 
   /**
    * Catalog of Federal Domestic Assistance number
@@ -182,22 +187,88 @@ export interface SearchGrantsArgs {
   posted_date_before?: string;
 
   /**
-   * Minimum award amount (client-side filtering)
-   * In dollars
+   * Earliest response deadline to include
+   * Only opportunities with deadlines on or after this date
+   * Format: YYYY-MM-DD
    *
-   * @example 100000
-   * @example 1000000
+   * @example "2024-12-01"
    */
-  award_amount_min?: number;
+  response_date_after?: string;
 
   /**
-   * Maximum award amount (client-side filtering)
-   * In dollars
+   * Latest response deadline to include
+   * Format: YYYY-MM-DD
    *
-   * @example 500000
-   * @example 10000000
+   * @example "2024-12-31"
    */
-  award_amount_max?: number;
+  response_date_before?: string;
+
+  /**
+   * Filter by eligible applicant types
+   * Comma-separated codes for multiple types
+   *
+   * Common codes:
+   * - "SG" - State governments
+   * - "LG" - Local governments
+   * - "IHE" - Institutions of higher education
+   * - "NP" - Nonprofits
+   * - "PR" - Private institutions
+   * - "IND" - Individuals
+   *
+   * @example "SG,LG" - State and local governments
+   * @example "IHE" - Higher education institutions only
+   */
+  applicant_types?: string;
+
+  /**
+   * Filter by funding activity categories
+   * Comma-separated codes for multiple categories
+   *
+   * Common codes:
+   * - "ED" - Education
+   * - "HL" - Health
+   * - "ENV" - Environment
+   * - "CD" - Community Development
+   *
+   * @example "ED" - Education funding
+   * @example "HL,ED" - Health and education
+   */
+  funding_categories?: string;
+
+  /**
+   * Filter by funding instrument types
+   * Comma-separated codes for multiple instruments
+   *
+   * Instrument codes:
+   * - "CA" - Cooperative Agreement
+   * - "G" - Grant
+   * - "PC" - Procurement Contract
+   * - "O" - Other
+   *
+   * @example "G" - Grants only
+   * @example "G,CA" - Grants and cooperative agreements
+   */
+  funding_instruments?: string;
+
+  /**
+   * Filter by opportunity status
+   *
+   * Status values:
+   * - "P" - Posted (active, accepting applications)
+   * - "F" - Forecasted (upcoming opportunities)
+   *
+   * @example "P" - Posted opportunities only
+   * @example "F" - Forecasted opportunities only
+   */
+  status?: string;
+
+  /**
+   * Field to sort results by
+   *
+   * @example "posted_date" - Sort by posted date
+   * @example "-response_date" - Sort by response deadline (descending)
+   */
+  ordering?: string;
 
   /**
    * Maximum results to return
