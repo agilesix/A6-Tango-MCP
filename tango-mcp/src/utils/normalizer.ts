@@ -39,6 +39,7 @@ export interface NormalizedContract {
 
   award_amount: number;
   award_date: string | null;
+  fiscal_year: number | null;
 
   naics_code: string | null;
   naics_description: string | null;
@@ -241,6 +242,7 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
     },
     award_amount,
     award_date,
+    fiscal_year: contract.fiscal_year || null,
     naics_code: contract.naics_code || null,
     naics_description: contract.naics_description || null,
     psc_code: contract.psc_code || null,
