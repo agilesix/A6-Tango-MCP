@@ -1,8 +1,8 @@
 /**
  * Search Grants Tool
  *
- * Searches federal grants and financial assistance awards from USASpending through Tango API.
- * Includes client-side filtering for recipient name/UEI and award amount ranges.
+ * Searches grant opportunities from Grants.gov through Tango API.
+ * These are pre-award opportunities available for application, NOT post-award USASpending data.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -10,7 +10,7 @@ import type { SearchGrantsArgs } from "@/types/tool-args";
 import type { Env } from "@/types/env";
 import { TangoApiClient } from "@/api/tango-client";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
-import { normalizeGrant } from "@/utils/normalizer";
+import { normalizeGrantOpportunity } from "@/utils/normalizer";
 import type { CacheManager } from "@/cache/kv-cache";
 import { getLogger } from "@/utils/logger";
 import { z } from "zod";
@@ -25,37 +25,43 @@ export function registerSearchGrantsTool(
 ): void {
 	server.tool(
 		"search_tango_grants",
-		"Search federal grants and financial assistance awards from USASpending through Tango's unified API. Returns grant details including recipient information (name, UEI, type), agency details, award amounts, CFDA numbers, and project information. Supports filtering by: free-text search, awarding agency, CFDA number, date ranges. Client-side filtering for recipient name/UEI and award amount ranges. Useful for finding grants by recipient, agency grant distribution analysis, and research funding opportunities. Maximum 100 results per request.",
+		"Search grant opportunities from Grants.gov through Tango's unified API. Returns pre-award opportunities available for application, NOT post-award USASpending data. Includes opportunity details: title, description, status (Posted/Forecasted), important dates (posted, response deadline), eligible applicant types, funding categories and instruments, funding details (ceiling, floor, estimated total), CFDA numbers, agency, contact information. Useful for: finding grant opportunities by subject area, identifying deadlines, checking eligibility requirements, researching funding amounts. Maximum 100 results per request.",
 		{
 			query: z
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across grant descriptions and titles. Example: 'education' or 'research'"
+					"Free-text search across opportunity titles and descriptions. Example: 'education', 'research', 'community development'"
 				),
 			agency: z
 				.string()
 				.optional()
 				.describe(
-					"Awarding agency name or code. Example: 'Department of Education' or 'ED'"
+					"Awarding agency abbreviation. Example: 'ED' (Education), 'NSF' (National Science Foundation), 'HHS' (Health and Human Services)"
 				),
-			recipient_name: z
+			naics_code: z
 				.string()
 				.optional()
 				.describe(
-					"Recipient organization name (client-side filtering). Case-insensitive partial match. Example: 'Stanford University'"
+					"NAICS industry classification code (2-6 digits). Example: '541512' (Computer systems design), '611' (Educational services)"
 				),
-			recipient_uei: z
+			psc_code: z
 				.string()
 				.optional()
 				.describe(
-					"Recipient Unique Entity Identifier (client-side filtering). 12-character alphanumeric. Example: 'A1B2C3D4E5F6'"
+					"Product/Service Code. Example: 'R425' (Support - professional: engineering/technical)"
+				),
+			awarding_agency: z
+				.string()
+				.optional()
+				.describe(
+					"Awarding agency name or code. Example: 'Department of Education', 'ED'"
 				),
 			cfda_number: z
 				.string()
 				.optional()
 				.describe(
-					"Catalog of Federal Domestic Assistance number. Example: '84.027' (Special Education Grants)"
+					"Catalog of Federal Domestic Assistance number. Example: '84.027' (Special Education Grants), '93.778' (Medicaid)"
 				),
 			posted_date_after: z
 				.string()
@@ -69,17 +75,47 @@ export function registerSearchGrantsTool(
 				.describe(
 					"Latest posted date to include (YYYY-MM-DD format). Example: '2024-12-31'"
 				),
-			award_amount_min: z
-				.number()
+			response_date_after: z
+				.string()
 				.optional()
 				.describe(
-					"Minimum award amount in dollars (client-side filtering). Example: 100000"
+					"Earliest response deadline to include (YYYY-MM-DD format). Only opportunities with deadlines on or after this date. Example: '2024-12-01'"
 				),
-			award_amount_max: z
-				.number()
+			response_date_before: z
+				.string()
 				.optional()
 				.describe(
-					"Maximum award amount in dollars (client-side filtering). Example: 1000000"
+					"Latest response deadline to include (YYYY-MM-DD format). Example: '2024-12-31'"
+				),
+			applicant_types: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by eligible applicant types. Comma-separated codes: 'SG' (State governments), 'LG' (Local governments), 'IHE' (Higher education), 'NP' (Nonprofits), 'PR' (Private), 'IND' (Individuals). Example: 'SG,LG' for state and local governments"
+				),
+			funding_categories: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by funding activity categories. Comma-separated codes: 'ED' (Education), 'HL' (Health), 'ENV' (Environment), 'CD' (Community Development). Example: 'ED' or 'HL,ED'"
+				),
+			funding_instruments: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by funding instrument types. Comma-separated codes: 'G' (Grant), 'CA' (Cooperative Agreement), 'PC' (Procurement Contract), 'O' (Other). Example: 'G' for grants only, 'G,CA' for grants and cooperative agreements"
+				),
+			status: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by opportunity status. Values: 'P' (Posted - active, accepting applications), 'F' (Forecasted - upcoming opportunities). Example: 'P' for posted only"
+				),
+			ordering: z
+				.string()
+				.optional()
+				.describe(
+					"Field to sort results by. Prefix with '-' for descending order. Example: 'posted_date' (oldest first), '-response_date' (latest deadline first)"
 				),
 			limit: z
 				.number()
@@ -126,17 +162,31 @@ export function registerSearchGrantsTool(
 					};
 				}
 
-				// Build API parameters (excluding client-side filters)
+				// Build API parameters
 				const params: Record<string, unknown> = {};
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
+				if (sanitized.naics_code) params.naics_code = sanitized.naics_code;
+				if (sanitized.psc_code) params.psc_code = sanitized.psc_code;
+				if (sanitized.awarding_agency) params.awarding_agency = sanitized.awarding_agency;
 				if (sanitized.cfda_number) params.cfda_number = sanitized.cfda_number;
 				if (sanitized.posted_date_after)
 					params.posted_date_after = sanitized.posted_date_after;
 				if (sanitized.posted_date_before)
 					params.posted_date_before = sanitized.posted_date_before;
+				if (sanitized.response_date_after)
+					params.response_date_after = sanitized.response_date_after;
+				if (sanitized.response_date_before)
+					params.response_date_before = sanitized.response_date_before;
+				if (sanitized.applicant_types)
+					params.applicant_types = sanitized.applicant_types;
+				if (sanitized.funding_categories)
+					params.funding_categories = sanitized.funding_categories;
+				if (sanitized.funding_instruments)
+					params.funding_instruments = sanitized.funding_instruments;
+				if (sanitized.status) params.status = sanitized.status;
+				if (sanitized.ordering) params.ordering = sanitized.ordering;
 
-				// Request more results for client-side filtering
 				params.limit = sanitized.limit || 10;
 
 				// Call Tango API with caching
@@ -169,67 +219,24 @@ export function registerSearchGrantsTool(
 				}
 
 				// Normalize results
-				let normalizedGrants = (response.data.results || []).map(
-					normalizeGrant
+				const normalizedOpportunities = (response.data.results || []).map(
+					normalizeGrantOpportunity
 				);
-
-				// Apply client-side filtering
-				if (sanitized.recipient_name) {
-					const recipientLower = sanitized.recipient_name.toLowerCase();
-					normalizedGrants = normalizedGrants.filter((grant) =>
-						grant.recipient.name.toLowerCase().includes(recipientLower)
-					);
-				}
-
-				if (sanitized.recipient_uei) {
-					normalizedGrants = normalizedGrants.filter(
-						(grant) =>
-							grant.recipient.uei === sanitized.recipient_uei
-					);
-				}
-
-				if (sanitized.award_amount_min !== undefined) {
-					normalizedGrants = normalizedGrants.filter(
-						(grant) => grant.award_amount >= sanitized.award_amount_min!
-					);
-				}
-
-				if (sanitized.award_amount_max !== undefined) {
-					normalizedGrants = normalizedGrants.filter(
-						(grant) => grant.award_amount <= sanitized.award_amount_max!
-					);
-				}
 
 				// Build response envelope
 				logger.toolComplete("search_tango_grants", true, Date.now() - startTime, {
-					returned: normalizedGrants.length,
-					client_side_filtering_applied: !!(sanitized.recipient_name || sanitized.recipient_uei || sanitized.award_amount_min || sanitized.award_amount_max),
+					returned: normalizedOpportunities.length,
 				});
 
 				const result = {
-					data: normalizedGrants,
-					total: response.data.total || response.data.count || normalizedGrants.length,
-					returned: normalizedGrants.length,
+					data: normalizedOpportunities,
+					total: response.data.total || response.data.count || normalizedOpportunities.length,
+					returned: normalizedOpportunities.length,
 					filters: sanitized,
-					client_side_filters: {
-						applied: !!(
-							sanitized.recipient_name ||
-							sanitized.recipient_uei ||
-							sanitized.award_amount_min ||
-							sanitized.award_amount_max
-						),
-						recipient_name: !!sanitized.recipient_name,
-						recipient_uei: !!sanitized.recipient_uei,
-						award_amount_range: !!(
-							sanitized.award_amount_min || sanitized.award_amount_max
-						),
-					},
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more:
-							normalizedGrants.length >= (sanitized.limit || 10) &&
-							normalizedGrants.length <
-								(response.data.total || response.data.count || 0),
+						has_more: !!response.data.next,
+						next_page: response.data.next || null,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
