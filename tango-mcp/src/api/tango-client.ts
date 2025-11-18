@@ -28,6 +28,8 @@ import {
   TangoValidationError,
 } from "@/types/errors";
 import { enforceRateLimit } from "@/utils/rate-limiter";
+import type { CacheManager } from "@/cache/kv-cache";
+import { generateCacheKey } from "@/utils/cache-key";
 
 /**
  * API client response wrapper
@@ -41,6 +43,13 @@ export interface ApiResponse<T> {
   error?: string;
   /** HTTP status code */
   status?: number;
+  /** Cache metadata */
+  cache?: {
+    /** Whether this response came from cache */
+    hit: boolean;
+    /** Cache key used (if applicable) */
+    key?: string;
+  };
 }
 
 /**
@@ -50,9 +59,11 @@ export interface ApiResponse<T> {
 export class TangoApiClient {
   private readonly baseUrl: string;
   private readonly defaultTimeout = 30000; // 30 seconds
+  private readonly cache?: CacheManager;
 
-  constructor(env: Env) {
+  constructor(env: Env, cache?: CacheManager) {
     this.baseUrl = env.TANGO_API_BASE_URL || "https://tango.makegov.com/api";
+    this.cache = cache;
   }
 
   /**
@@ -163,12 +174,12 @@ export class TangoApiClient {
   }
 
   /**
-   * Generic GET request to Tango API
+   * Generic GET request to Tango API with optional caching
    *
    * @param endpoint API endpoint path (e.g., "/contracts/")
    * @param params Query parameters
    * @param apiKey Tango API key
-   * @returns API response
+   * @returns API response with cache metadata
    */
   async get<T>(
     endpoint: string,
@@ -183,10 +194,32 @@ export class TangoApiClient {
     // Sanitize input parameters
     const sanitizedParams = this.sanitizeInput(params);
 
+    // Generate cache key if caching is enabled
+    let cacheKey: string | undefined;
+    if (this.cache) {
+      // Use endpoint as tool name for cache key
+      const toolName = endpoint.replace(/^\//, "").replace(/\/$/, "").replace(/\//g, "_");
+      cacheKey = await generateCacheKey(toolName, sanitizedParams);
+
+      // Try to get from cache
+      const cached = await this.cache.get<T>(cacheKey);
+      if (cached.hit && cached.data) {
+        return {
+          success: true,
+          data: cached.data,
+          status: 200,
+          cache: {
+            hit: true,
+            key: cacheKey,
+          },
+        };
+      }
+    }
+
     // Build URL with query parameters
     const url = this.buildUrl(endpoint, sanitizedParams);
 
-    // Enforce rate limiting
+    // Enforce rate limiting (only for actual API calls)
     await enforceRateLimit();
 
     try {
@@ -216,10 +249,21 @@ export class TangoApiClient {
         // Parse JSON response
         const data = (await response.json()) as T;
 
+        // Cache successful responses
+        if (this.cache && cacheKey) {
+          await this.cache.set(cacheKey, data);
+        }
+
         return {
           success: true,
           data,
           status: response.status,
+          cache: this.cache
+            ? {
+                hit: false,
+                key: cacheKey,
+              }
+            : undefined,
         };
       } catch (error) {
         clearTimeout(timeoutId);
@@ -348,8 +392,9 @@ export class TangoApiClient {
  * Create Tango API client instance
  *
  * @param env Cloudflare Workers environment bindings
+ * @param cache Optional cache manager for response caching
  * @returns TangoApiClient instance
  */
-export function createTangoClient(env: Env): TangoApiClient {
-  return new TangoApiClient(env);
+export function createTangoClient(env: Env, cache?: CacheManager): TangoApiClient {
+  return new TangoApiClient(env, cache);
 }
