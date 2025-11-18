@@ -413,6 +413,45 @@ export interface TangoSpendingBreakdownItem {
 }
 
 /**
+ * Vendor contract history item
+ * Simplified contract data for history display
+ */
+export interface TangoVendorContractHistoryItem {
+  /** Procurement Instrument Identifier */
+  piid?: string;
+  /** Contract title/description */
+  title?: string;
+  /** Contract description */
+  description?: string;
+  /** Award date (YYYY-MM-DD format) */
+  award_date?: string;
+  /** Obligated amount */
+  amount?: number;
+  /** Awarding agency information */
+  agency?: {
+    name?: string;
+    code?: string;
+  };
+}
+
+/**
+ * Vendor subaward/grant history item
+ * Simplified subaward data for history display
+ */
+export interface TangoVendorSubawardHistoryItem {
+  /** Subaward ID */
+  award_id?: string;
+  /** Subaward title/description */
+  title?: string;
+  /** Award date (YYYY-MM-DD format) */
+  award_date?: string;
+  /** Award amount */
+  amount?: number;
+  /** Prime contract PIID */
+  prime_contract_piid?: string;
+}
+
+/**
  * Generic API response wrapper
  */
 export interface TangoApiResponse<T> {

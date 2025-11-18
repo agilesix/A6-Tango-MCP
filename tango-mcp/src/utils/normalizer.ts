@@ -138,6 +138,22 @@ export interface NormalizedVendor {
 
   /** Federal obligations - primary vendor performance metric */
   federal_obligations: TangoFederalObligations;
+
+  /** Contract history (when include_history=true) */
+  contract_history?: Array<{
+    piid?: string;
+    title?: string;
+    award_date?: string;
+    amount?: number;
+  }>;
+
+  /** Subaward history (when include_history=true) */
+  subaward_history?: Array<{
+    award_id?: string;
+    title?: string;
+    award_date?: string;
+    amount?: number;
+  }>;
 }
 
 /**
