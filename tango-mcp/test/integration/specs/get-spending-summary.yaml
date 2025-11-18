@@ -1,0 +1,90 @@
+name: "Get Spending Summary - By Vendor"
+description: "Verify get_tango_spending_summary aggregates spending by vendor"
+tool: "get_tango_spending_summary"
+arguments:
+  group_by: "vendor"
+  limit: 50
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 10000
+  - type: "json_path"
+    path: "$.data.summary"
+    expected_type: "object"
+  - type: "json_path"
+    path: "$.data.summary.total_spending"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.data.summary.total_count"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.data.breakdown"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.filters.group_by"
+    expected: "vendor"
+
+---
+name: "Get Spending Summary - By Agency"
+description: "Verify get_tango_spending_summary aggregates spending by agency"
+tool: "get_tango_spending_summary"
+arguments:
+  group_by: "agency"
+  limit: 50
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data.breakdown"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.filters.group_by"
+    expected: "agency"
+
+---
+name: "Get Spending Summary - Fiscal Year Filter"
+description: "Verify get_tango_spending_summary filters by fiscal year"
+tool: "get_tango_spending_summary"
+arguments:
+  fiscal_year: 2024
+  group_by: "vendor"
+  limit: 50
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.fiscal_year"
+    expected: 2024
+
+---
+name: "Get Spending Summary - By NAICS"
+description: "Verify get_tango_spending_summary aggregates by NAICS code"
+tool: "get_tango_spending_summary"
+arguments:
+  group_by: "naics"
+  limit: 50
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.group_by"
+    expected: "naics"
+  - type: "json_path"
+    path: "$.data.breakdown"
+    expected_type: "array"
+
+---
+name: "Get Spending Summary - Missing API Key"
+description: "Verify get_tango_spending_summary handles missing API key error"
+tool: "get_tango_spending_summary"
+arguments:
+  group_by: "vendor"
+skip_api_key: true
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_API_KEY"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_API_KEY"

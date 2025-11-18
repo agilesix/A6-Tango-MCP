@@ -1,0 +1,93 @@
+name: "Search Contracts - Basic Query"
+description: "Verify search_tango_contracts tool returns contract data with basic search"
+tool: "search_tango_contracts"
+arguments:
+  query: "IT services"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.total"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.returned"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.filters.query"
+    expected: "IT services"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"
+
+---
+name: "Search Contracts - Vendor Filter"
+description: "Verify search_tango_contracts filters by vendor name"
+tool: "search_tango_contracts"
+arguments:
+  vendor_name: "Lockheed"
+  limit: 10
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.filters.vendor_name"
+    expected: "Lockheed"
+
+---
+name: "Search Contracts - Date Range"
+description: "Verify search_tango_contracts filters by date range"
+tool: "search_tango_contracts"
+arguments:
+  award_date_start: "2024-01-01"
+  award_date_end: "2024-12-31"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.award_date_start"
+    expected: "2024-01-01"
+  - type: "json_path"
+    path: "$.filters.award_date_end"
+    expected: "2024-12-31"
+
+---
+name: "Search Contracts - Missing API Key"
+description: "Verify search_tango_contracts handles missing API key error"
+tool: "search_tango_contracts"
+arguments:
+  query: "test"
+skip_api_key: true
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_API_KEY"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_API_KEY"
+
+---
+name: "Search Contracts - Empty Results"
+description: "Verify search_tango_contracts handles queries with no results"
+tool: "search_tango_contracts"
+arguments:
+  query: "xyzabc123impossible_query_string_99999"
+  limit: 10
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.returned"
+    expected: 0

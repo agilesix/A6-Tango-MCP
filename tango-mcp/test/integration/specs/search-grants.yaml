@@ -1,0 +1,102 @@
+name: "Search Grants - Basic Query"
+description: "Verify search_tango_grants tool returns grant data with basic search"
+tool: "search_tango_grants"
+arguments:
+  query: "education"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.total"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.returned"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.filters.query"
+    expected: "education"
+  - type: "json_path"
+    path: "$.client_side_filters"
+    expected_type: "object"
+
+---
+name: "Search Grants - Recipient Name Filter"
+description: "Verify search_tango_grants applies client-side recipient name filtering"
+tool: "search_tango_grants"
+arguments:
+  recipient_name: "University"
+  limit: 10
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.filters.recipient_name"
+    expected: "University"
+  - type: "json_path"
+    path: "$.client_side_filters.applied"
+    expected: true
+  - type: "json_path"
+    path: "$.client_side_filters.recipient_name"
+    expected: true
+
+---
+name: "Search Grants - Amount Range Filter"
+description: "Verify search_tango_grants applies client-side amount filtering"
+tool: "search_tango_grants"
+arguments:
+  award_amount_min: 100000
+  award_amount_max: 1000000
+  limit: 10
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.award_amount_min"
+    expected: 100000
+  - type: "json_path"
+    path: "$.filters.award_amount_max"
+    expected: 1000000
+  - type: "json_path"
+    path: "$.client_side_filters.applied"
+    expected: true
+  - type: "json_path"
+    path: "$.client_side_filters.award_amount_range"
+    expected: true
+
+---
+name: "Search Grants - Missing API Key"
+description: "Verify search_tango_grants handles missing API key error"
+tool: "search_tango_grants"
+arguments:
+  query: "test"
+skip_api_key: true
+
+assertions:
+  - type: "contains_text"
+    text: "MISSING_API_KEY"
+  - type: "json_path"
+    path: "$.error_code"
+    expected: "MISSING_API_KEY"
+
+---
+name: "Search Grants - CFDA Number"
+description: "Verify search_tango_grants filters by CFDA number"
+tool: "search_tango_grants"
+arguments:
+  cfda_number: "84.027"
+  limit: 5
+
+assertions:
+  - type: "success"
+  - type: "json_path"
+    path: "$.filters.cfda_number"
+    expected: "84.027"
