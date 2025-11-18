@@ -15,6 +15,7 @@ import { registerGetSpendingSummaryTool } from "./tools/get-spending-summary.js"
 import { registerGetContractDetailTool } from "./tools/get-contract-detail.js";
 import { registerGetGrantDetailTool } from "./tools/get-grant-detail.js";
 import { registerGetOpportunityDetailTool } from "./tools/get-opportunity-detail.js";
+import { registerGetAgencyAnalyticsTool } from "./tools/get-agency-analytics.js";
 import { createCacheManager } from "./cache/kv-cache.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
@@ -51,6 +52,7 @@ export class MCPServerAgent extends McpAgent<Env> {
 		registerGetContractDetailTool(this.server, env, cache);
 		registerGetGrantDetailTool(this.server, env, cache);
 		registerGetOpportunityDetailTool(this.server, env, cache);
+		registerGetAgencyAnalyticsTool(this.server, env, cache);
 	}
 }
 

@@ -238,6 +238,32 @@ export class TangoApiClient {
   }
 
   /**
+   * Get agency contracts (awarding or funding)
+   *
+   * Retrieves contracts for a specific agency using Tango's agency-specific endpoints.
+   * Supports both awarding agency and funding agency perspectives.
+   *
+   * @param agencyCode Agency code (e.g., "DOD", "GSA", "ED", "7000")
+   * @param role "awarding" or "funding" - whether agency is awarding or funding contracts
+   * @param params Query parameters (fiscal_year, limit, ordering, etc.)
+   * @param apiKey Tango API key
+   * @returns Agency contract list
+   */
+  async getAgencyContracts(
+    agencyCode: string,
+    role: "awarding" | "funding",
+    params: Record<string, unknown>,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoContractListResponse>> {
+    if (!agencyCode) {
+      throw new TangoValidationError("Agency code is required", "agencyCode", agencyCode);
+    }
+
+    const endpoint = `/agencies/${agencyCode}/contracts/${role}/`;
+    return this.get<TangoContractListResponse>(endpoint, params, apiKey);
+  }
+
+  /**
    * Generic GET request to Tango API with optional caching
    *
    * @param endpoint API endpoint path (e.g., "/contracts/")
