@@ -16,6 +16,7 @@ import type {
   TangoGrantOpportunityResponse,
   TangoVendorResponse,
   TangoOpportunityResponse,
+  TangoFederalObligations,
 } from "@/types/tango-api";
 
 /**
@@ -226,6 +227,25 @@ export interface NormalizedVendor {
     total_grants: number;
     total_grant_value: number;
   };
+
+  /** Federal obligations - primary vendor performance metric */
+  federal_obligations: TangoFederalObligations;
+
+  /** Contract history (when include_history=true) */
+  contract_history?: Array<{
+    piid?: string;
+    title?: string;
+    award_date?: string;
+    amount?: number;
+  }>;
+
+  /** Subaward history (when include_history=true) */
+  subaward_history?: Array<{
+    award_id?: string;
+    title?: string;
+    award_date?: string;
+    amount?: number;
+  }>;
 }
 
 /**
@@ -559,6 +579,12 @@ export function normalizeVendor(vendor: TangoVendorResponse): NormalizedVendor {
   // Contacts fallback
   const contacts = vendor.points_of_contact || vendor.contacts || [];
 
+  // Federal obligations fallback - provide default structure if missing
+  const federal_obligations: TangoFederalObligations = vendor.federal_obligations || {
+    active_contracts: { total_obligated: 0, count: 0 },
+    total_contracts: { total_obligated: 0, count: 0 },
+  };
+
   return {
     uei: vendor.uei,
     legal_business_name,
@@ -584,6 +610,7 @@ export function normalizeVendor(vendor: TangoVendorResponse): NormalizedVendor {
       total_grants: vendor.total_grants || 0,
       total_grant_value: vendor.total_grant_value || 0,
     },
+    federal_obligations,
   };
 }
 

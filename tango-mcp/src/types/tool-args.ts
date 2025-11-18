@@ -298,42 +298,25 @@ export interface GetVendorProfileArgs {
   uei: string;
 
   /**
-   * Include recent contract history
-   * Default: true
+   * Include recent contract and grant history
+   * Default: false
+   * When true, fetches up to history_limit recent contracts and subawards
    *
    * @example true
    * @example false
    */
-  include_contracts?: boolean;
+  include_history?: boolean;
 
   /**
-   * Include recent grant/subaward history
-   * Default: true
+   * Maximum number of history records to fetch per type (contracts and subawards)
+   * Only used when include_history is true
+   * Default: 10
+   * Maximum: 50
    *
-   * @example true
-   * @example false
-   */
-  include_grants?: boolean;
-
-  /**
-   * Number of recent contracts to include
-   * Default: 5
-   * Maximum: 20
-   *
-   * @example 5
    * @example 10
+   * @example 25
    */
-  contracts_limit?: number;
-
-  /**
-   * Number of recent grants to include
-   * Default: 5
-   * Maximum: 20
-   *
-   * @example 5
-   * @example 10
-   */
-  grants_limit?: number;
+  history_limit?: number;
 }
 
 /**

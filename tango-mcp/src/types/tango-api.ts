@@ -292,6 +292,41 @@ export interface TangoGrantListResponse {
 }
 
 /**
+ * Federal obligations data for vendor performance
+ * Primary vendor performance metric from Tango API
+ */
+export interface TangoFederalObligations {
+  /** Active contract obligations */
+  active_contracts?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Total historical contract obligations */
+  total_contracts?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Active subaward obligations */
+  active_subawards?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Total historical subaward obligations */
+  total_subawards?: {
+    total_obligated?: number;
+    count?: number;
+  };
+  /** Active IDV (Indefinite Delivery Vehicle) count */
+  active_idvs?: {
+    count?: number;
+  };
+  /** Total historical IDV count */
+  total_idvs?: {
+    count?: number;
+  };
+}
+
+/**
  * Vendor/Entity profile from Tango API /entities/{uei}/ endpoint
  * Source: SAM.gov
  */
@@ -347,6 +382,9 @@ export interface TangoVendorResponse {
   total_grants?: number;
   /** Total value of all grants */
   total_grant_value?: number;
+
+  /** Federal obligations - primary vendor performance metric */
+  federal_obligations?: TangoFederalObligations;
 }
 
 /**
@@ -494,6 +532,45 @@ export interface TangoSpendingBreakdownItem {
   total_obligated: number;
   /** Number of contracts for this item */
   contract_count: number;
+}
+
+/**
+ * Vendor contract history item
+ * Simplified contract data for history display
+ */
+export interface TangoVendorContractHistoryItem {
+  /** Procurement Instrument Identifier */
+  piid?: string;
+  /** Contract title/description */
+  title?: string;
+  /** Contract description */
+  description?: string;
+  /** Award date (YYYY-MM-DD format) */
+  award_date?: string;
+  /** Obligated amount */
+  amount?: number;
+  /** Awarding agency information */
+  agency?: {
+    name?: string;
+    code?: string;
+  };
+}
+
+/**
+ * Vendor subaward/grant history item
+ * Simplified subaward data for history display
+ */
+export interface TangoVendorSubawardHistoryItem {
+  /** Subaward ID */
+  award_id?: string;
+  /** Subaward title/description */
+  title?: string;
+  /** Award date (YYYY-MM-DD format) */
+  award_date?: string;
+  /** Award amount */
+  amount?: number;
+  /** Prime contract PIID */
+  prime_contract_piid?: string;
 }
 
 /**
