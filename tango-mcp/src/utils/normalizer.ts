@@ -39,6 +39,12 @@ export interface NormalizedContract {
     office: string | null;
   };
 
+  funding_office: {
+    name: string | null;
+    code: string | null;
+    office: string | null;
+  } | null;
+
   award_amount: number;
   award_date: string | null;
   fiscal_year: number | null;
@@ -55,9 +61,56 @@ export interface NormalizedContract {
     city: string | null;
     state: string | null;
     country: string | null;
+    zip: string | null;
+    country_code: string | null;
   };
 
   status: string | null;
+
+  /** Solicitation identifier */
+  solicitation_identifier: string | null;
+
+  /** Parent award information */
+  parent_award: {
+    piid: string | null;
+    agency_name: string | null;
+    agency_code: string | null;
+  } | null;
+
+  /** Contract pricing/type */
+  contract_pricing_type: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  /** Legislative mandates */
+  legislative_mandates: {
+    clinger_cohen_act: boolean | null;
+    davis_bacon_act: boolean | null;
+    service_contract_act: boolean | null;
+    walsh_healey_act: boolean | null;
+  } | null;
+
+  /** Performance based service acquisition */
+  performance_based_service_acquisition: string | null;
+
+  /** Contract bundling */
+  contract_bundling: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  /** Consolidated contract */
+  consolidated_contract: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  /** Number of actions/modifications */
+  number_of_actions: number | null;
+
+  /** Solicitation date */
+  solicitation_date: string | null;
 }
 
 /**
@@ -200,27 +253,107 @@ export interface NormalizedGrantOpportunity {
 export interface NormalizedVendor {
   uei: string;
   legal_business_name: string;
+  dba_name: string | null;
   duns: string | null;
   cage_code: string | null;
+  dodaac: string | null;
 
   registration: {
     status: string | null;
+    registered: string | null;
     activation_date: string | null;
+    sam_activation_date: string | null;
     expiration_date: string | null;
+    sam_expiration_date: string | null;
+    sam_registration_date: string | null;
+    last_update_date: string | null;
+  };
+
+  exclusion: {
+    status_flag: string | null;
+    url: string | null;
   };
 
   business_types: unknown[];
+  sba_business_types: unknown[];
+
+  entity_structure: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  entity_type: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  profit_structure: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  organization_structure: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  incorporation: {
+    state_code: string | null;
+    state_description: string | null;
+    country_code: string | null;
+    country_description: string | null;
+  } | null;
+
+  entity_division: {
+    name: string | null;
+    number: string | null;
+  } | null;
+
+  entity_start_date: string | null;
+  congressional_district: string | null;
 
   address: {
     physical: unknown;
     mailing: unknown;
   };
 
+  email_address: string | null;
+  entity_url: string | null;
+
+  purpose_of_registration: {
+    code: string | null;
+    description: string | null;
+  } | null;
+
+  uei_info: {
+    status: string | null;
+    creation_date: string | null;
+    expiration_date: string | null;
+  } | null;
+
+  public_display_flag: string | null;
+
+  description: string | null;
+  capabilities: string | null;
+  keywords: string | null;
+
+  fiscal_year_end_close_date: string | null;
+  submission_date: string | null;
+
   contacts: unknown[];
 
+  primary_naics: string | null;
   naics_codes: unknown[];
   psc_codes: unknown[];
+
   certifications: unknown[];
+
+  ownership: {
+    highest_owner: unknown;
+    immediate_owner: unknown;
+  } | null;
+
+  relationships: unknown[];
 
   performance_summary: {
     total_contracts: number;
@@ -231,6 +364,8 @@ export interface NormalizedVendor {
 
   /** Federal obligations - primary vendor performance metric */
   federal_obligations: TangoFederalObligations;
+
+  evs_source: string | null;
 
   /** Contract history (when include_history=true) */
   contract_history?: Array<{
@@ -263,23 +398,64 @@ export interface NormalizedOpportunity {
     name: string | null;
     code: string | null;
     office: string | null;
+    office_address: {
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+      country: string | null;
+    } | null;
   };
 
   posted_date: string | null;
+  first_notice_date: string | null;
+  last_notice_date: string | null;
   response_deadline: string | null;
 
   naics_code: string | null;
-  set_aside: string | null;
+  naics_description: string | null;
+
+  psc_code: string | null;
+  psc_description: string | null;
+
+  set_aside: {
+    code: string | null;
+    description: string | null;
+  } | null;
 
   place_of_performance: {
     city: string | null;
     state: string | null;
     zip: string | null;
     country: string | null;
+    address: string | null;
   };
 
   description: string | null;
   link: string | null;
+
+  award_number: string | null;
+
+  primary_contact: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    title: string | null;
+  } | null;
+
+  attachments: Array<{
+    name: string;
+    url: string;
+    type: string;
+  }>;
+
+  notice_history: Array<{
+    date: string;
+    type: string;
+    description: string;
+  }>;
+
+  classification_code: string | null;
+  archive_date: string | null;
 }
 
 /**
@@ -327,6 +503,15 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
   const agency_code = contract.awarding_office?.agency_code || null;
   const office_name = contract.awarding_office?.office_name || null;
 
+  // Funding office information
+  const funding_office = contract.funding_office
+    ? {
+        name: contract.funding_office.agency_name || null,
+        code: contract.funding_office.agency_code || null,
+        office: contract.funding_office.office_name || null,
+      }
+    : null;
+
   // Set-aside fallback: set_aside.code > type_of_set_aside
   const set_aside = contract.set_aside?.code || contract.type_of_set_aside || null;
 
@@ -337,6 +522,51 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
   const pop_city = contract.place_of_performance?.city_name || null;
   const pop_state = contract.place_of_performance?.state_name || null;
   const pop_country = contract.place_of_performance?.country_name || null;
+  const pop_zip = contract.place_of_performance?.zip || null;
+  const pop_country_code = contract.place_of_performance?.country_code || null;
+
+  // Parent award
+  const parent_award = contract.parent_award
+    ? {
+        piid: contract.parent_award.piid || null,
+        agency_name: contract.parent_award.agency_name || null,
+        agency_code: contract.parent_award.agency_code || null,
+      }
+    : null;
+
+  // Contract pricing/type
+  const contract_pricing_type = contract.contract_pricing_type
+    ? {
+        code: contract.contract_pricing_type.code || null,
+        description: contract.contract_pricing_type.description || null,
+      }
+    : null;
+
+  // Legislative mandates
+  const legislative_mandates = contract.legislative_mandates
+    ? {
+        clinger_cohen_act: contract.legislative_mandates.clinger_cohen_act ?? null,
+        davis_bacon_act: contract.legislative_mandates.davis_bacon_act ?? null,
+        service_contract_act: contract.legislative_mandates.service_contract_act ?? null,
+        walsh_healey_act: contract.legislative_mandates.walsh_healey_act ?? null,
+      }
+    : null;
+
+  // Contract bundling
+  const contract_bundling = contract.contract_bundling
+    ? {
+        code: contract.contract_bundling.code || null,
+        description: contract.contract_bundling.description || null,
+      }
+    : null;
+
+  // Consolidated contract
+  const consolidated_contract = contract.consolidated_contract
+    ? {
+        code: contract.consolidated_contract.code || null,
+        description: contract.consolidated_contract.description || null,
+      }
+    : null;
 
   return {
     contract_id,
@@ -352,6 +582,7 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
       code: agency_code,
       office: office_name,
     },
+    funding_office,
     award_amount,
     award_date,
     fiscal_year: contract.fiscal_year || null,
@@ -364,8 +595,19 @@ export function normalizeContract(contract: TangoContractResponse): NormalizedCo
       city: pop_city,
       state: pop_state,
       country: pop_country,
+      zip: pop_zip,
+      country_code: pop_country_code,
     },
     status,
+    solicitation_identifier: contract.solicitation_identifier || null,
+    parent_award,
+    contract_pricing_type,
+    legislative_mandates,
+    performance_based_service_acquisition: contract.performance_based_service_acquisition || null,
+    contract_bundling,
+    consolidated_contract,
+    number_of_actions: contract.number_of_actions || null,
+    solicitation_date: contract.solicitation_date || null,
   };
 }
 
@@ -577,6 +819,7 @@ export function normalizeVendor(vendor: TangoVendorResponse): NormalizedVendor {
 
   // Business types fallback
   const business_types = vendor.business_types || vendor.business_type_list || [];
+  const sba_business_types = vendor.sba_business_types || [];
 
   // Contacts fallback
   const contacts = vendor.points_of_contact || vendor.contacts || [];
@@ -587,25 +830,145 @@ export function normalizeVendor(vendor: TangoVendorResponse): NormalizedVendor {
     total_contracts: { total_obligated: 0, count: 0 },
   };
 
+  // Entity structure
+  const entity_structure =
+    vendor.entity_structure_code || vendor.entity_structure_desc
+      ? {
+          code: vendor.entity_structure_code || null,
+          description: vendor.entity_structure_desc || null,
+        }
+      : null;
+
+  // Entity type
+  const entity_type =
+    vendor.entity_type_code || vendor.entity_type_desc
+      ? {
+          code: vendor.entity_type_code || null,
+          description: vendor.entity_type_desc || null,
+        }
+      : null;
+
+  // Profit structure
+  const profit_structure =
+    vendor.profit_structure_code || vendor.profit_structure_desc
+      ? {
+          code: vendor.profit_structure_code || null,
+          description: vendor.profit_structure_desc || null,
+        }
+      : null;
+
+  // Organization structure
+  const organization_structure =
+    vendor.organization_structure_code || vendor.organization_structure_desc
+      ? {
+          code: vendor.organization_structure_code || null,
+          description: vendor.organization_structure_desc || null,
+        }
+      : null;
+
+  // Incorporation details
+  const incorporation =
+    vendor.state_of_incorporation_code ||
+    vendor.state_of_incorporation_desc ||
+    vendor.country_of_incorporation_code ||
+    vendor.country_of_incorporation_desc
+      ? {
+          state_code: vendor.state_of_incorporation_code || null,
+          state_description: vendor.state_of_incorporation_desc || null,
+          country_code: vendor.country_of_incorporation_code || null,
+          country_description: vendor.country_of_incorporation_desc || null,
+        }
+      : null;
+
+  // Entity division
+  const entity_division =
+    vendor.entity_division_name || vendor.entity_division_number
+      ? {
+          name: vendor.entity_division_name || null,
+          number: vendor.entity_division_number || null,
+        }
+      : null;
+
+  // Purpose of registration
+  const purpose_of_registration =
+    vendor.purpose_of_registration_code || vendor.purpose_of_registration_desc
+      ? {
+          code: vendor.purpose_of_registration_code || null,
+          description: vendor.purpose_of_registration_desc || null,
+        }
+      : null;
+
+  // UEI info
+  const uei_info =
+    vendor.uei_status || vendor.uei_creation_date || vendor.uei_expiration_date
+      ? {
+          status: vendor.uei_status || null,
+          creation_date: vendor.uei_creation_date || null,
+          expiration_date: vendor.uei_expiration_date || null,
+        }
+      : null;
+
+  // Ownership
+  const ownership =
+    vendor.highest_owner || vendor.immediate_owner
+      ? {
+          highest_owner: vendor.highest_owner || null,
+          immediate_owner: vendor.immediate_owner || null,
+        }
+      : null;
+
   return {
     uei: vendor.uei,
     legal_business_name,
+    dba_name: vendor.dba_name || null,
     duns: vendor.duns || null,
     cage_code: vendor.cage_code || null,
+    dodaac: vendor.dodaac || null,
     registration: {
       status: vendor.registration_status || null,
+      registered: vendor.registered || null,
       activation_date: vendor.activation_date || null,
+      sam_activation_date: vendor.sam_activation_date || null,
       expiration_date: vendor.expiration_date || null,
+      sam_expiration_date: vendor.sam_expiration_date || null,
+      sam_registration_date: vendor.sam_registration_date || null,
+      last_update_date: vendor.last_update_date || null,
+    },
+    exclusion: {
+      status_flag: vendor.exclusion_status_flag || null,
+      url: vendor.exclusion_url || null,
     },
     business_types: Array.isArray(business_types) ? business_types : [],
+    sba_business_types: Array.isArray(sba_business_types) ? sba_business_types : [],
+    entity_structure,
+    entity_type,
+    profit_structure,
+    organization_structure,
+    incorporation,
+    entity_division,
+    entity_start_date: vendor.entity_start_date || null,
+    congressional_district: vendor.congressional_district || null,
     address: {
       physical: vendor.physical_address || null,
       mailing: vendor.mailing_address || null,
     },
+    email_address: vendor.email_address || null,
+    entity_url: vendor.entity_url || null,
+    purpose_of_registration,
+    uei_info,
+    public_display_flag: vendor.public_display_flag || null,
+    description: vendor.description || null,
+    capabilities: vendor.capabilities || null,
+    keywords: vendor.keywords || null,
+    fiscal_year_end_close_date: vendor.fiscal_year_end_close_date || null,
+    submission_date: vendor.submission_date || null,
     contacts: Array.isArray(contacts) ? contacts : [],
+    primary_naics: vendor.primary_naics || null,
     naics_codes: Array.isArray(vendor.naics_codes) ? vendor.naics_codes : [],
     psc_codes: Array.isArray(vendor.psc_codes) ? vendor.psc_codes : [],
     certifications: Array.isArray(vendor.certifications) ? vendor.certifications : [],
+    ownership,
+    relationships: Array.isArray(vendor.relationships) ? vendor.relationships : [],
     performance_summary: {
       total_contracts: vendor.total_contracts || 0,
       total_contract_value: vendor.total_contract_value || 0,
@@ -613,6 +976,7 @@ export function normalizeVendor(vendor: TangoVendorResponse): NormalizedVendor {
       total_grant_value: vendor.total_grant_value || 0,
     },
     federal_obligations,
+    evs_source: vendor.evs_source || null,
   };
 }
 
@@ -658,11 +1022,23 @@ export function normalizeOpportunity(
   const posted_date =
     opportunity.posted_date || opportunity.first_notice_date || opportunity.date_posted || null;
 
+  // First notice date
+  const first_notice_date = opportunity.first_notice_date || null;
+
+  // Last notice date
+  const last_notice_date = opportunity.last_notice_date || null;
+
   // Deadline fallback: response_deadline > due_date
   const response_deadline = opportunity.response_deadline || opportunity.due_date || null;
 
-  // Set-aside fallback
-  const set_aside = opportunity.set_aside?.code || opportunity.set_aside_type || null;
+  // Set-aside - check for nested object or flat string
+  const set_aside =
+    opportunity.set_aside?.code || opportunity.set_aside?.description || opportunity.set_aside_type
+      ? {
+          code: opportunity.set_aside?.code || null,
+          description: opportunity.set_aside?.description || null,
+        }
+      : null;
 
   // Link fallback: sam_url > url > link
   const link = opportunity.sam_url || opportunity.url || opportunity.link || null;
@@ -672,6 +1048,44 @@ export function normalizeOpportunity(
   if (description && description.length > 500) {
     description = description.substring(0, 497) + "...";
   }
+
+  // Office address
+  const office_address = opportunity.office?.office_address
+    ? {
+        city: opportunity.office.office_address.city || null,
+        state: opportunity.office.office_address.state || null,
+        zip: opportunity.office.office_address.zip || null,
+        country: opportunity.office.office_address.country || null,
+      }
+    : null;
+
+  // Primary contact
+  const primary_contact = opportunity.primary_contact
+    ? {
+        name: opportunity.primary_contact.name || null,
+        email: opportunity.primary_contact.email || null,
+        phone: opportunity.primary_contact.phone || null,
+        title: opportunity.primary_contact.title || null,
+      }
+    : null;
+
+  // Attachments
+  const attachments = Array.isArray(opportunity.attachments)
+    ? opportunity.attachments.map((att) => ({
+        name: att.name || "",
+        url: att.url || "",
+        type: att.type || "",
+      }))
+    : [];
+
+  // Notice history
+  const notice_history = Array.isArray(opportunity.notice_history)
+    ? opportunity.notice_history.map((hist) => ({
+        date: hist.date || "",
+        type: hist.type || "",
+        description: hist.description || "",
+      }))
+    : [];
 
   return {
     opportunity_id,
@@ -683,19 +1097,32 @@ export function normalizeOpportunity(
       name: opportunity.office?.agency_name || null,
       code: opportunity.office?.agency_code || null,
       office: opportunity.office?.office_name || null,
+      office_address,
     },
     posted_date,
+    first_notice_date,
+    last_notice_date,
     response_deadline,
     naics_code: opportunity.naics_code || null,
+    naics_description: opportunity.naics_description || null,
+    psc_code: opportunity.psc_code || null,
+    psc_description: opportunity.psc_description || null,
     set_aside,
     place_of_performance: {
       city: opportunity.place_of_performance?.city || null,
       state: opportunity.place_of_performance?.state || null,
       zip: opportunity.place_of_performance?.zip || null,
       country: opportunity.place_of_performance?.country || null,
+      address: opportunity.place_of_performance?.address || null,
     },
     description,
     link,
+    award_number: opportunity.award_number || null,
+    primary_contact,
+    attachments,
+    notice_history,
+    classification_code: opportunity.classification_code || null,
+    archive_date: opportunity.archive_date || null,
   };
 }
 
