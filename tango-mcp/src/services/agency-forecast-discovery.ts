@@ -1,7 +1,7 @@
 /**
  * Agency Forecast Discovery Service
  *
- * Discovers which agencies have forecasts by sampling the forecast CSV API.
+ * Discovers which agencies have forecasts by sampling the forecast JSON API.
  * Uses KV caching with 24-hour TTL to minimize API calls.
  *
  * Philosophy:
@@ -16,7 +16,8 @@
  * - Network timeouts → Use static fallback, clear error message
  *
  * Implementation:
- * - Query: GET /api/forecasts/?format=csv&limit=100&ordering=-modified_at
+ * - Query: GET /api/forecasts/?limit=100&ordering=-modified_at
+ * - Format: JSON (CSV format not supported by /forecasts/ endpoint)
  * - Cache key: 'agency_forecast_availability:discovered'
  * - TTL: 86400 seconds (24 hours)
  * - Error handling: Graceful degradation, never throw
@@ -24,7 +25,7 @@
 
 import type { TangoApiClient } from "@/api/tango-client";
 import type { CacheManager } from "@/cache/kv-cache";
-import { parseCSV } from "@/utils/csv-parser";
+import type { TangoForecastListResponse } from "@/types/tango-api";
 import { getKnownAgencyCodes, KNOWN_AGENCIES_WITH_FORECASTS } from "@/data/agencies-with-forecasts";
 import { createDiscoveryError, type DiscoveryError } from "@/types/errors";
 
@@ -35,7 +36,7 @@ const CACHE_KEY = "agency_forecast_availability:discovered";
 const CACHE_TTL_SECONDS = 86400; // 24 hours
 
 /**
- * CSV sampling configuration
+ * JSON sampling configuration
  */
 const SAMPLE_LIMIT = 100;
 const SAMPLE_ORDERING = "-modified_at"; // Most recently modified first
@@ -196,7 +197,7 @@ export class AgencyForecastDiscoveryService {
 	}
 
 	/**
-	 * Sample forecasts from CSV API to discover agencies
+	 * Sample forecasts from JSON API to discover agencies
 	 *
 	 * Queries the most recent 100 forecasts and extracts unique agency codes.
 	 * Caches the result for 24 hours if successful.
@@ -210,10 +211,9 @@ export class AgencyForecastDiscoveryService {
 		const errors: DiscoveryError[] = [];
 
 		try {
-			// Query forecast CSV
+			// Query forecast JSON (CSV format not supported)
 			const response = await this.client.searchForecasts(
 				{
-					format: "csv",
 					limit: SAMPLE_LIMIT,
 					ordering: SAMPLE_ORDERING,
 				},
@@ -222,7 +222,7 @@ export class AgencyForecastDiscoveryService {
 
 			// Check for API errors
 			if (!response.success || !response.data) {
-				console.error("Forecast CSV query failed:", {
+				console.error("Forecast JSON query failed:", {
 					error: response.error,
 					status: response.status,
 				});
@@ -253,15 +253,15 @@ export class AgencyForecastDiscoveryService {
 				};
 			}
 
-			// Parse CSV to extract agency codes
-			const csvData = response.data as unknown as string;
-			const agencies = this.extractAgenciesFromCSV(csvData);
+			// Parse JSON to extract agency codes
+			const jsonData = response.data as TangoForecastListResponse;
+			const agencies = this.extractAgenciesFromJSON(jsonData);
 
 			// If parsing failed or no agencies found, record error
 			if (agencies.size === 0) {
 				const parseError = createDiscoveryError(
-					new Error("No agencies found in CSV data"),
-					"csv_parsing",
+					new Error("No agencies found in JSON data"),
+					"json_parsing",
 					false
 				);
 				parseError.code = 'PARSE_ERROR';
@@ -293,7 +293,7 @@ export class AgencyForecastDiscoveryService {
 				agencies,
 				cached: false,
 				source: "dynamic",
-				sampled: this.countCSVRows(csvData),
+				sampled: jsonData.results?.length || 0,
 				errors: errors.length > 0 ? errors : undefined,
 				metadata: {
 					count: agencies.size,
@@ -366,52 +366,35 @@ export class AgencyForecastDiscoveryService {
 	}
 
 	/**
-	 * Extract unique agency codes from CSV data
+	 * Extract unique agency codes from JSON data
 	 *
-	 * Parses CSV and collects all unique values from the 'agency' column.
-	 * Handles parse errors gracefully.
+	 * Iterates through forecast results and collects all unique agency codes.
+	 * Handles missing or invalid data gracefully.
 	 *
-	 * @param csvData Raw CSV string
+	 * @param jsonData Parsed JSON response from forecast API
 	 * @returns Map of agency codes (all set to true)
 	 */
-	private extractAgenciesFromCSV(csvData: string): Map<string, boolean> {
+	private extractAgenciesFromJSON(jsonData: TangoForecastListResponse): Map<string, boolean> {
 		const agencies = new Map<string, boolean>();
 
 		try {
-			// Parse CSV into structured data
-			const rows = parseCSV(csvData);
-
-			// Extract unique agency codes
-			for (const row of rows) {
-				const agencyCode = row.agency?.trim();
-				if (agencyCode && agencyCode.length > 0) {
-					agencies.set(agencyCode, true);
+			// Extract unique agency codes from results array
+			if (jsonData.results && Array.isArray(jsonData.results)) {
+				for (const forecast of jsonData.results) {
+					const agencyCode = forecast.agency?.trim();
+					if (agencyCode && agencyCode.length > 0) {
+						agencies.set(agencyCode, true);
+					}
 				}
 			}
 		} catch (error) {
-			console.error("CSV parsing failed during agency extraction:", {
+			console.error("JSON parsing failed during agency extraction:", {
 				error: String(error),
 			});
 			// Return empty map - error will be handled upstream
 		}
 
 		return agencies;
-	}
-
-	/**
-	 * Count number of data rows in CSV (excluding header)
-	 *
-	 * @param csvData Raw CSV string
-	 * @returns Number of data rows
-	 */
-	private countCSVRows(csvData: string): number {
-		try {
-			const lines = csvData.trim().split("\n");
-			// Subtract 1 for header, filter empty lines
-			return lines.slice(1).filter((line) => line.trim().length > 0).length;
-		} catch {
-			return 0;
-		}
 	}
 
 	/**

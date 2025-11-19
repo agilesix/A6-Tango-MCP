@@ -4,7 +4,7 @@
  * Tests comprehensive error scenarios including:
  * - Cache read/write failures
  * - API errors (timeout, network, server errors)
- * - CSV parse failures
+ * - JSON parse failures
  * - Fallback behavior
  * - Error metadata propagation
  */
@@ -12,6 +12,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiResponse, TangoApiClient } from "@/api/tango-client";
 import type { CacheManager } from "@/cache/kv-cache";
+import type { TangoForecastListResponse } from "@/types/tango-api";
 import {
 	AgencyForecastDiscoveryService,
 } from "@/services/agency-forecast-discovery";
@@ -38,12 +39,17 @@ function createMockCache(): CacheManager {
 }
 
 /**
- * Sample CSV data for testing
+ * Sample JSON data for testing
  */
-const SAMPLE_CSV = `id,agency,title,naics_code,modified_at
-1,HHS,Health IT Modernization,541519,2024-01-15
-2,DHS,Cybersecurity Services,541512,2024-01-14
-3,GSA,IT Support Services,541519,2024-01-12`;
+const SAMPLE_JSON: TangoForecastListResponse = {
+	results: [
+		{ id: 1, agency: "HHS", title: "Health IT Modernization", naics_code: "541519" },
+		{ id: 2, agency: "DHS", title: "Cybersecurity Services", naics_code: "541512" },
+		{ id: 3, agency: "GSA", title: "IT Support Services", naics_code: "541519" },
+	],
+	count: 3,
+	total: 3,
+};
 
 describe("AgencyForecastDiscoveryService - Error Handling", () => {
 	let service: AgencyForecastDiscoveryService;
@@ -66,8 +72,8 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 			// Mock successful API response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
@@ -97,8 +103,8 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 			// Mock successful API response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			// Mock cache write failure
@@ -238,7 +244,7 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
 				data: "id,agency,title\n",
-				format: "csv",
+				format: "json",
 			} as ApiResponse<any>);
 
 			const result = await service.discoverAgencies("test-api-key");
@@ -264,7 +270,7 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
 				data: "not valid csv data at all!!!",
-				format: "csv",
+				format: "json",
 			} as ApiResponse<any>);
 
 			const result = await service.discoverAgencies("test-api-key");
@@ -401,8 +407,8 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 			// Mock cache write failure (doesn't trigger fallback)
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockRejectedValue(
@@ -447,8 +453,8 @@ describe("AgencyForecastDiscoveryService - Error Handling", () => {
 
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({

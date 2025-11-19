@@ -2,15 +2,16 @@
  * Unit tests for AgencyForecastDiscoveryService
  *
  * Tests:
- * - CSV parsing and agency extraction
+ * - JSON parsing and agency extraction
  * - Cache hit/miss behavior
  * - Error handling and graceful degradation
- * - CSV row counting
+ * - JSON response handling
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiResponse, TangoApiClient } from "@/api/tango-client";
 import type { CacheManager } from "@/cache/kv-cache";
+import type { TangoForecastListResponse } from "@/types/tango-api";
 import {
 	AgencyForecastDiscoveryService,
 	createAgencyForecastDiscoveryService,
@@ -37,14 +38,19 @@ function createMockCache(): CacheManager {
 }
 
 /**
- * Sample CSV data for testing
+ * Sample JSON data for testing
  */
-const SAMPLE_CSV = `id,agency,title,naics_code,modified_at
-1,HHS,Health IT Modernization,541519,2024-01-15
-2,DHS,Cybersecurity Services,541512,2024-01-14
-3,HHS,Medical Supplies,339113,2024-01-13
-4,GSA,IT Support Services,541519,2024-01-12
-5,DHS,Border Security Tech,334511,2024-01-11`;
+const SAMPLE_JSON: TangoForecastListResponse = {
+	results: [
+		{ id: 1, agency: "HHS", title: "Health IT Modernization", naics_code: "541519" },
+		{ id: 2, agency: "DHS", title: "Cybersecurity Services", naics_code: "541512" },
+		{ id: 3, agency: "HHS", title: "Medical Supplies", naics_code: "339113" },
+		{ id: 4, agency: "GSA", title: "IT Support Services", naics_code: "541519" },
+		{ id: 5, agency: "DHS", title: "Border Security Tech", naics_code: "334511" },
+	],
+	count: 5,
+	total: 5,
+};
 
 describe("AgencyForecastDiscoveryService", () => {
 	let service: AgencyForecastDiscoveryService;
@@ -77,18 +83,18 @@ describe("AgencyForecastDiscoveryService", () => {
 			expect(mockClient.searchForecasts).not.toHaveBeenCalled();
 		});
 
-		it("should sample CSV when cache misses", async () => {
+		it("should sample JSON when cache misses", async () => {
 			// Mock cache miss
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
 				hit: false,
 			});
 
-			// Mock successful CSV response
+			// Mock successful JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			// Mock cache set
@@ -106,10 +112,9 @@ describe("AgencyForecastDiscoveryService", () => {
 			expect(result.agencies.has("DHS")).toBe(true);
 			expect(result.agencies.has("GSA")).toBe(true);
 
-			// Verify API was called with correct parameters
+			// Verify API was called with correct parameters (no format parameter for JSON)
 			expect(mockClient.searchForecasts).toHaveBeenCalledWith(
 				{
-					format: "csv",
 					limit: 100,
 					ordering: "-modified_at",
 				},
@@ -157,11 +162,11 @@ describe("AgencyForecastDiscoveryService", () => {
 				new Error("Cache unavailable"),
 			);
 
-			// Mock successful CSV response
+			// Mock successful JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
@@ -184,11 +189,11 @@ describe("AgencyForecastDiscoveryService", () => {
 				hit: false,
 			});
 
-			// Mock successful CSV response
+			// Mock successful JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			// Mock cache write failure
@@ -233,11 +238,11 @@ describe("AgencyForecastDiscoveryService", () => {
 			// Create service without cache
 			const serviceNoCache = new AgencyForecastDiscoveryService(mockClient);
 
-			// Mock successful CSV response
+			// Mock successful JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			const result = await serviceNoCache.discoverAgencies("test-api-key");
@@ -255,11 +260,11 @@ describe("AgencyForecastDiscoveryService", () => {
 				hit: false,
 			});
 
-			// Mock successful CSV response
+			// Mock successful JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: SAMPLE_CSV,
-				format: "csv",
+				data: SAMPLE_JSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
@@ -273,18 +278,18 @@ describe("AgencyForecastDiscoveryService", () => {
 			expect(result.agencies.size).toBe(3);
 		});
 
-		it("should use static fallback when CSV returns empty results", async () => {
+		it("should use static fallback when JSON returns empty results", async () => {
 			// Mock cache miss
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
 				hit: false,
 			});
 
-			// Mock empty CSV (only header)
+			// Mock empty JSON response
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: "id,agency,title\n",
-				format: "csv",
+				data: { results: [], count: 0, total: 0 },
+				format: "json",
 			} as ApiResponse<any>);
 
 			const result = await service.discoverAgencies("test-api-key");
@@ -311,25 +316,30 @@ describe("AgencyForecastDiscoveryService", () => {
 		});
 	});
 
-	describe("CSV parsing", () => {
-		it("should extract unique agency codes from CSV", async () => {
+	describe("JSON parsing", () => {
+		it("should extract unique agency codes from JSON", async () => {
 			// Mock cache miss
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
 				hit: false,
 			});
 
-			// Mock CSV with duplicate agencies
-			const csvWithDuplicates = `id,agency,title
-1,HHS,Forecast 1
-2,HHS,Forecast 2
-3,DHS,Forecast 3
-4,HHS,Forecast 4`;
+			// Mock JSON with duplicate agencies
+			const jsonWithDuplicates: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: "HHS", title: "Forecast 1" },
+					{ id: 2, agency: "HHS", title: "Forecast 2" },
+					{ id: 3, agency: "DHS", title: "Forecast 3" },
+					{ id: 4, agency: "HHS", title: "Forecast 4" },
+				],
+				count: 4,
+				total: 4,
+			};
 
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: csvWithDuplicates,
-				format: "csv",
+				data: jsonWithDuplicates,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
@@ -351,47 +361,56 @@ describe("AgencyForecastDiscoveryService", () => {
 			);
 		});
 
-		it("should handle empty CSV gracefully", async () => {
+		it("should handle empty JSON gracefully", async () => {
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
 				hit: false,
 			});
 
-			// Empty CSV (only header)
-			const emptyCSV = "id,agency,title\n";
+			// Empty JSON response
+			const emptyJSON: TangoForecastListResponse = {
+				results: [],
+				count: 0,
+				total: 0,
+			};
 
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: emptyCSV,
-				format: "csv",
+				data: emptyJSON,
+				format: "json",
 			} as ApiResponse<any>);
 
 			const result = await service.discoverAgencies("test-api-key");
 
-			// Should fall back to static list when CSV is empty
+			// Should fall back to static list when JSON is empty
 			expect(result.source).toBe("static_fallback");
 			expect(result.agencies.size).toBeGreaterThan(0);
 			// Should not cache empty results
 			expect(mockCache.set).not.toHaveBeenCalled();
 		});
 
-		it("should handle CSV with missing agency values", async () => {
+		it("should handle JSON with missing agency values", async () => {
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
 				hit: false,
 			});
 
-			// CSV with some missing agency values
-			const csvWithMissing = `id,agency,title
-1,HHS,Forecast 1
-2,,Forecast 2
-3,DHS,Forecast 3
-4,,Forecast 4`;
+			// JSON with some missing agency values
+			const jsonWithMissing: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: "HHS", title: "Forecast 1" },
+					{ id: 2, title: "Forecast 2" }, // Missing agency
+					{ id: 3, agency: "DHS", title: "Forecast 3" },
+					{ id: 4, title: "Forecast 4" }, // Missing agency
+				],
+				count: 4,
+				total: 4,
+			};
 
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: csvWithMissing,
-				format: "csv",
+				data: jsonWithMissing,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
@@ -400,7 +419,7 @@ describe("AgencyForecastDiscoveryService", () => {
 
 			const result = await service.discoverAgencies("test-api-key");
 
-			// Should only include rows with agency values
+			// Should only include results with agency values
 			expect(result.agencies.size).toBe(2);
 			expect(result.agencies.has("HHS")).toBe(true);
 			expect(result.agencies.has("DHS")).toBe(true);
@@ -412,16 +431,21 @@ describe("AgencyForecastDiscoveryService", () => {
 				hit: false,
 			});
 
-			// CSV with whitespace around agency codes
-			const csvWithWhitespace = `id,agency,title
-1," HHS ",Forecast 1
-2,"  DHS",Forecast 2
-3,"GSA  ",Forecast 3`;
+			// JSON with whitespace around agency codes
+			const jsonWithWhitespace: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: " HHS ", title: "Forecast 1" },
+					{ id: 2, agency: "  DHS", title: "Forecast 2" },
+					{ id: 3, agency: "GSA  ", title: "Forecast 3" },
+				],
+				count: 3,
+				total: 3,
+			};
 
 			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
 				success: true,
-				data: csvWithWhitespace,
-				format: "csv",
+				data: jsonWithWhitespace,
+				format: "json",
 			} as ApiResponse<any>);
 
 			vi.mocked(mockCache.set).mockResolvedValue({
