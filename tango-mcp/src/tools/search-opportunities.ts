@@ -155,9 +155,19 @@ export function registerSearchOpportunitiesTool(
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
 				if (sanitized.naics_code) {
-					params.naics = Array.isArray(sanitized.naics_code)
-						? sanitized.naics_code.join("|")
-						: sanitized.naics_code;
+					// Support multiple NAICS codes in array, pipe-separated, or comma-separated format
+					let naicsValue: string;
+					if (Array.isArray(sanitized.naics_code)) {
+						naicsValue = sanitized.naics_code.join("|");
+					} else if (typeof sanitized.naics_code === "string") {
+						// Convert comma-separated to pipe-separated for API compatibility
+						naicsValue = sanitized.naics_code.includes(",")
+							? sanitized.naics_code.replace(/,\s*/g, "|")
+							: sanitized.naics_code;
+					} else {
+						naicsValue = String(sanitized.naics_code);
+					}
+					params.naics = naicsValue;
 				}
 				if (sanitized.set_aside_type)
 					params.set_aside = sanitized.set_aside_type;
