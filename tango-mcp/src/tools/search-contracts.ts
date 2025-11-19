@@ -6,14 +6,19 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Env } from "@/types/env";
-import { TangoApiClient } from "@/api/tango-client";
-import { sanitizeToolArgs } from "@/middleware/sanitization";
-import { normalizeContract } from "@/utils/normalizer";
-import type { CacheManager } from "@/cache/kv-cache";
-import { getLogger } from "@/utils/logger";
-import { validateContractOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
+import { TangoApiClient } from "@/api/tango-client";
+import type { CacheManager } from "@/cache/kv-cache";
+import { sanitizeToolArgs } from "@/middleware/sanitization";
+import type { Env } from "@/types/env";
+import { getLogger } from "@/utils/logger";
+import { normalizeContract } from "@/utils/normalizer";
+import { analyzeQuery } from "@/utils/query-analyzer";
+import {
+	extractCursorFromUrl,
+	getOrderingDescription,
+	validateContractOrdering,
+} from "@/utils/sort-helpers";
 
 /**
  * Register search contracts tool with the MCP server
@@ -37,7 +42,7 @@ export function registerSearchContractsTool(
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across contract descriptions and titles. Works best for: vendor names ('Lockheed Martin'), technology terms ('cloud computing', 'cybersecurity'), or service descriptions ('IT modernization'). For agency-specific searches, use 'awarding_agency' parameter instead (e.g., awarding_agency='Department of Defense' rather than query='VA digital services'). For industry searches, use 'naics_code' or 'psc_code' parameters. Multi-concept queries work better when combining free-text query with structured filters like awarding_agency, naics_code, or date ranges.",
+					"Free-text search across contract descriptions and titles. BEST PRACTICES: Use for single concepts like vendor names ('Lockheed Martin'), specific technologies ('cloud computing'), or services ('IT modernization'). AVOID mixing multiple concepts in one query. EXAMPLES OF WHAT WORKS WELL: query='cybersecurity' with awarding_agency='VA', query='Agile Six' (vendor search), query='data analytics platform'. EXAMPLES OF WHAT DOESN'T WORK: query='VA digital services' (mixing agency + topic - returns 0 results). INSTEAD USE: awarding_agency='Department of Veterans Affairs' with query='digital services'. For agency searches, always use the 'awarding_agency' parameter. For industry classifications, use 'naics_code' or 'psc_code' parameters. The API performs best when agency filters are separated from free-text search terms.",
 				),
 			vendor_name: z
 				.string()
@@ -169,19 +174,19 @@ export function registerSearchContractsTool(
 				.default("json")
 				.optional()
 				.describe(
-					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API."
+					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API.",
 				),
 			ordering: z
 				.string()
 				.optional()
 				.describe(
-					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'award_date', '-award_date', 'obligated', '-obligated', 'recipient_name', '-recipient_name'. Example: '-award_date' for newest first, '-obligated' for highest value first."
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'award_date', '-award_date', 'obligated', '-obligated', 'recipient_name', '-recipient_name'. Example: '-award_date' for newest first, '-obligated' for highest value first.",
 				),
 			cursor: z
 				.string()
 				.optional()
 				.describe(
-					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets.",
 				),
 		},
 		async (args) => {
@@ -354,11 +359,12 @@ export function registerSearchContractsTool(
 												"recipient_name",
 												"-recipient_name",
 											],
-											suggestion: "Use one of the valid ordering fields listed above",
+											suggestion:
+												"Use one of the valid ordering fields listed above",
 											recoverable: true,
 										},
 										null,
-										2
+										2,
 									),
 								},
 							],
@@ -415,12 +421,17 @@ export function registerSearchContractsTool(
 				}
 
 				// Handle CSV format response
-				if (response.format === 'csv') {
+				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					logger.toolComplete("search_tango_contracts", true, Date.now() - startTime, {
-						format: "csv",
-						csv_length: csvData.length,
-					});
+					logger.toolComplete(
+						"search_tango_contracts",
+						true,
+						Date.now() - startTime,
+						{
+							format: "csv",
+							csv_length: csvData.length,
+						},
+					);
 
 					return {
 						content: [
@@ -436,6 +447,59 @@ export function registerSearchContractsTool(
 				const normalizedContracts = (response.data.results || []).map(
 					normalizeContract,
 				);
+
+				// Check for zero results with query and provide enhanced guidance
+				if (normalizedContracts.length === 0 && sanitized.query) {
+					const analysis = analyzeQuery(sanitized.query);
+
+					// If high confidence agency detection, provide enhanced response with suggestions
+					if (analysis.confidence === "high" && analysis.suggestedAgency) {
+						logger.info("Zero results with detected agency pattern", {
+							query: sanitized.query,
+							detectedAgency: analysis.suggestedAgency,
+							confidence: analysis.confidence,
+						});
+
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											data: [],
+											total: 0,
+											returned: 0,
+											filters: sanitized,
+											suggestions: {
+												detected_issue: "Zero results for multi-concept query",
+												recommended_approach: {
+													awarding_agency: analysis.suggestedAgency,
+													query: analysis.refinedQuery || sanitized.query,
+												},
+												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API works best when agency filters are separated from free-text search. Try using awarding_agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}".`,
+												example: {
+													tool: "search_tango_contracts",
+													params: {
+														awarding_agency: analysis.suggestedAgency,
+														query: analysis.refinedQuery || undefined,
+														limit: sanitized.limit,
+													},
+												},
+											},
+											execution: {
+												duration_ms: Date.now() - startTime,
+												cached: response.cache?.hit || false,
+												api_calls: 1,
+											},
+										},
+										null,
+										2,
+									),
+								},
+							],
+						};
+					}
+				}
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
@@ -461,13 +525,15 @@ export function registerSearchContractsTool(
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more: !!nextCursor || (
-							normalizedContracts.length >= (sanitized.limit || 10) &&
-							normalizedContracts.length <
-								(response.data.total || response.data.count || 0)
-						),
+						has_more:
+							!!nextCursor ||
+							(normalizedContracts.length >= (sanitized.limit || 10) &&
+								normalizedContracts.length <
+									(response.data.total || response.data.count || 0)),
 						next_cursor: nextCursor,
-						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
+						ordering: sanitized.ordering
+							? getOrderingDescription(sanitized.ordering)
+							: undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
