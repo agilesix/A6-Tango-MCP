@@ -19,6 +19,7 @@ import {
 	getOrderingDescription,
 	validateContractOrdering,
 } from "@/utils/sort-helpers";
+import { SET_ASIDE_CODES } from "@/data/set-aside-codes";
 
 /**
  * Register search contracts tool with the MCP server
@@ -268,8 +269,36 @@ export function registerSearchContractsTool(
 					params.expiring_gte = sanitized.expiration_date_after;
 				if (sanitized.expiration_date_before)
 					params.expiring_lte = sanitized.expiration_date_before;
-				if (sanitized.set_aside_type)
-					params.set_aside = sanitized.set_aside_type;
+				if (sanitized.set_aside_type) {
+					// Support multiple set-aside codes in array, pipe-separated, or comma-separated format
+					let setAsideValue: string;
+					if (Array.isArray(sanitized.set_aside_type)) {
+						setAsideValue = sanitized.set_aside_type.join("|");
+					} else if (typeof sanitized.set_aside_type === "string") {
+						// Convert comma-separated to pipe-separated for API compatibility
+						setAsideValue = sanitized.set_aside_type.includes(",")
+							? sanitized.set_aside_type.replace(/,\s*/g, "|")
+							: sanitized.set_aside_type;
+					} else {
+						setAsideValue = String(sanitized.set_aside_type);
+					}
+
+					// Normalize to uppercase (set-aside codes are uppercase in API)
+					setAsideValue = setAsideValue.toUpperCase();
+
+					// Validate codes against lookup table (informational only, don't block)
+					const codes = setAsideValue.split('|').map(c => c.trim());
+					const unrecognized = codes.filter(c => !SET_ASIDE_CODES[c]);
+					if (unrecognized.length > 0) {
+						logger.info("Unrecognized set-aside codes in query", {
+							input: sanitized.set_aside_type,
+							unrecognized,
+							validCodes: `${Object.keys(SET_ASIDE_CODES).slice(0, 10).join(', ')}...`
+						});
+					}
+
+					params.set_aside = setAsideValue;
+				}
 
 				// Fiscal year parameters (map to API's fiscal_year_gte/lte)
 				if (sanitized.fiscal_year) {
