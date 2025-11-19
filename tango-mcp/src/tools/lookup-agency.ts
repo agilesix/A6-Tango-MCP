@@ -149,10 +149,15 @@ export function registerLookupAgencyTool(
 						duration_ms: Date.now() - startTime,
 						cached: response.cache?.hit || false,
 						api_calls: 1,
-						forecast_discovery_cached: forecastDiscovery.cached,
-						forecast_discovery_sampled: forecastDiscovery.sampled,
-						agencies_with_forecasts: forecastDiscovery.agencies.size,
-						forecast_discovery_error: forecastDiscovery.error,
+						forecast_discovery: {
+							cached: forecastDiscovery.cached,
+							source: forecastDiscovery.source,
+							sampled: forecastDiscovery.sampled,
+							agencies_found: forecastDiscovery.agencies.size,
+							fallback_used: forecastDiscovery.metadata?.fallback_used || false,
+							errors: forecastDiscovery.errors,
+							warning: forecastDiscovery.metadata?.warning,
+						},
 					},
 				};
 

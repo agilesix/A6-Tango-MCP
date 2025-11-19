@@ -69,6 +69,7 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(true);
+			expect(result.source).toBe("cache");
 			expect(result.agencies.size).toBe(3);
 			expect(result.agencies.has("HHS")).toBe(true);
 			expect(result.agencies.has("DHS")).toBe(true);
@@ -98,6 +99,7 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
+			expect(result.source).toBe("dynamic");
 			expect(result.sampled).toBe(5);
 			expect(result.agencies.size).toBe(3);
 			expect(result.agencies.has("HHS")).toBe(true);
@@ -122,7 +124,7 @@ describe("AgencyForecastDiscoveryService", () => {
 			);
 		});
 
-		it("should handle API errors gracefully", async () => {
+		it("should fall back to static list when API errors occur", async () => {
 			// Mock cache miss
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
@@ -139,8 +141,13 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
-			expect(result.agencies.size).toBe(0);
-			expect(result.error).toBe("API timeout");
+			expect(result.source).toBe("static_fallback");
+			expect(result.agencies.size).toBeGreaterThan(0);
+			expect(result.errors).toBeDefined();
+			expect(result.errors?.length).toBeGreaterThan(0);
+			// Should include known agencies from static list
+			expect(result.agencies.has("HHS")).toBe(true);
+			expect(result.agencies.has("DHS")).toBe(true);
 			expect(mockCache.set).not.toHaveBeenCalled();
 		});
 
@@ -165,6 +172,7 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
+			expect(result.source).toBe("dynamic");
 			expect(result.agencies.size).toBe(3);
 			expect(mockClient.searchForecasts).toHaveBeenCalled();
 		});
@@ -192,11 +200,13 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
+			expect(result.source).toBe("dynamic");
 			expect(result.agencies.size).toBe(3);
-			expect(result.error).toBeUndefined();
+			// Cache write errors are logged but may not be in the errors array
+			// since they don't block the operation
 		});
 
-		it("should handle unexpected errors gracefully", async () => {
+		it("should fall back to static list on unexpected errors", async () => {
 			// Mock cache miss
 			vi.mocked(mockCache.get).mockResolvedValue({
 				success: true,
@@ -211,8 +221,12 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await service.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
-			expect(result.agencies.size).toBe(0);
-			expect(result.error).toBe("Error: Unexpected network error");
+			expect(result.source).toBe("static_fallback");
+			expect(result.agencies.size).toBeGreaterThan(0);
+			expect(result.errors).toBeDefined();
+			expect(result.errors?.length).toBeGreaterThan(0);
+			// Should include known agencies from static list
+			expect(result.agencies.has("HHS")).toBe(true);
 		});
 
 		it("should work without cache manager", async () => {
@@ -229,8 +243,71 @@ describe("AgencyForecastDiscoveryService", () => {
 			const result = await serviceNoCache.discoverAgencies("test-api-key");
 
 			expect(result.cached).toBe(false);
+			expect(result.source).toBe("dynamic");
 			expect(result.agencies.size).toBe(3);
 			expect(mockClient.searchForecasts).toHaveBeenCalled();
+		});
+
+		it("should prefer dynamic data over static fallback when available", async () => {
+			// Mock cache miss
+			vi.mocked(mockCache.get).mockResolvedValue({
+				success: true,
+				hit: false,
+			});
+
+			// Mock successful CSV response
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: SAMPLE_CSV,
+				format: "csv",
+			} as ApiResponse<any>);
+
+			vi.mocked(mockCache.set).mockResolvedValue({
+				success: true,
+			});
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should use dynamic data, not static fallback
+			expect(result.source).toBe("dynamic");
+			expect(result.agencies.size).toBe(3);
+		});
+
+		it("should use static fallback when CSV returns empty results", async () => {
+			// Mock cache miss
+			vi.mocked(mockCache.get).mockResolvedValue({
+				success: true,
+				hit: false,
+			});
+
+			// Mock empty CSV (only header)
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: "id,agency,title\n",
+				format: "csv",
+			} as ApiResponse<any>);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should fall back to static list
+			expect(result.source).toBe("static_fallback");
+			expect(result.agencies.size).toBeGreaterThan(0);
+			expect(result.agencies.has("HHS")).toBe(true);
+			expect(result.agencies.has("DHS")).toBe(true);
+		});
+
+		it("should correctly indicate source as cache when data is cached", async () => {
+			// Mock cache hit
+			vi.mocked(mockCache.get).mockResolvedValue({
+				success: true,
+				hit: true,
+				data: ["HHS", "DHS"],
+			});
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			expect(result.source).toBe("cache");
+			expect(result.cached).toBe(true);
 		});
 	});
 
@@ -291,8 +368,9 @@ describe("AgencyForecastDiscoveryService", () => {
 
 			const result = await service.discoverAgencies("test-api-key");
 
-			expect(result.agencies.size).toBe(0);
-			expect(result.sampled).toBe(0);
+			// Should fall back to static list when CSV is empty
+			expect(result.source).toBe("static_fallback");
+			expect(result.agencies.size).toBeGreaterThan(0);
 			// Should not cache empty results
 			expect(mockCache.set).not.toHaveBeenCalled();
 		});

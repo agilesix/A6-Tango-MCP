@@ -231,6 +231,34 @@ export class TangoTimeoutError extends Error {
 }
 
 /**
+ * Discovery error metadata for agency forecast discovery operations
+ * Provides clear context about what went wrong and whether fallback was used
+ */
+export interface DiscoveryError {
+  /** Error code indicating type of failure */
+  code: 'CACHE_MISS' | 'CACHE_READ_ERROR' | 'CACHE_WRITE_ERROR' | 'API_ERROR' | 'PARSE_ERROR' | 'NETWORK_ERROR' | 'TIMEOUT' | 'UNKNOWN_ERROR';
+
+  /** Human-readable error message */
+  message: string;
+
+  /** Whether static fallback data was used */
+  fallback_used: boolean;
+
+  /** ISO 8601 timestamp when error occurred */
+  timestamp: string;
+
+  /** Additional context about the error */
+  context?: {
+    /** HTTP status code if API error */
+    status?: number;
+    /** Original error message if wrapped */
+    original_error?: string;
+    /** Affected operation */
+    operation?: string;
+  };
+}
+
+/**
  * Helper to create error response from any error
  *
  * @param error Error object (can be TangoError or generic Error)
@@ -275,5 +303,100 @@ export function toErrorResponse(error: unknown): ErrorResponse {
     suggestion: "An unexpected error occurred. Check logs for details.",
     recoverable: false,
     transient: false,
+  };
+}
+
+/**
+ * Create a DiscoveryError from various error sources
+ *
+ * @param error Original error object
+ * @param operation Description of operation that failed
+ * @param fallbackUsed Whether static fallback was used
+ * @returns Structured discovery error
+ */
+export function createDiscoveryError(
+  error: unknown,
+  operation: string,
+  fallbackUsed: boolean = false
+): DiscoveryError {
+  const timestamp = new Date().toISOString();
+
+  // Handle Tango error types
+  if (error instanceof TangoTimeoutError) {
+    return {
+      code: 'TIMEOUT',
+      message: 'Request timed out after 30 seconds',
+      fallback_used: fallbackUsed,
+      timestamp,
+      context: {
+        operation,
+        original_error: error.message,
+      },
+    };
+  }
+
+  if (error instanceof TangoNetworkError) {
+    return {
+      code: 'NETWORK_ERROR',
+      message: 'Network request failed',
+      fallback_used: fallbackUsed,
+      timestamp,
+      context: {
+        operation,
+        original_error: error.message,
+      },
+    };
+  }
+
+  if (error instanceof TangoApiError) {
+    return {
+      code: 'API_ERROR',
+      message: error.message,
+      fallback_used: fallbackUsed,
+      timestamp,
+      context: {
+        operation,
+        status: error.statusCode,
+        original_error: error.message,
+      },
+    };
+  }
+
+  // Handle generic errors
+  if (error instanceof Error) {
+    // Check if it's a parse error
+    if (error.message.includes('parse') || error.message.includes('JSON') || error.message.includes('CSV')) {
+      return {
+        code: 'PARSE_ERROR',
+        message: 'Failed to parse response data',
+        fallback_used: fallbackUsed,
+        timestamp,
+        context: {
+          operation,
+          original_error: error.message,
+        },
+      };
+    }
+
+    return {
+      code: 'UNKNOWN_ERROR',
+      message: error.message,
+      fallback_used: fallbackUsed,
+      timestamp,
+      context: {
+        operation,
+      },
+    };
+  }
+
+  // Handle string errors
+  return {
+    code: 'UNKNOWN_ERROR',
+    message: String(error),
+    fallback_used: fallbackUsed,
+    timestamp,
+    context: {
+      operation,
+    },
   };
 }
