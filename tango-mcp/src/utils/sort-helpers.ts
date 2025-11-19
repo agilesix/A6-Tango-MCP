@@ -40,6 +40,26 @@ export const VALID_OPPORTUNITY_ORDERING_FIELDS = [
 ] as const;
 
 /**
+ * Valid ordering fields for IDV endpoint
+ */
+export const VALID_IDV_ORDERING_FIELDS = [
+  "award_date",
+  "-award_date",
+  "fiscal_year",
+  "-fiscal_year",
+  "obligated",
+  "-obligated",
+  "total_contract_value",
+  "-total_contract_value",
+  "recipient_name",
+  "-recipient_name",
+  "last_date_to_order",
+  "-last_date_to_order",
+  "piid",
+  "-piid",
+] as const;
+
+/**
  * Sort direction enum
  */
 export type SortDirection = "asc" | "desc";
@@ -116,6 +136,32 @@ export function validateOpportunityOrdering(ordering: string): boolean {
   return VALID_OPPORTUNITY_ORDERING_FIELDS.includes(
     ordering as (typeof VALID_OPPORTUNITY_ORDERING_FIELDS)[number],
   );
+}
+
+/**
+ * Validate ordering parameter for IDVs
+ *
+ * @param ordering Ordering parameter to validate
+ * @returns Validation result with suggestion if invalid
+ */
+export function validateIDVOrdering(ordering: string): {
+  valid: boolean;
+  suggestion?: string;
+} {
+  const field = ordering.startsWith("-") ? ordering.substring(1) : ordering;
+
+  if (
+    VALID_IDV_ORDERING_FIELDS.includes(
+      ordering as (typeof VALID_IDV_ORDERING_FIELDS)[number],
+    )
+  ) {
+    return { valid: true };
+  }
+
+  return {
+    valid: false,
+    suggestion: `Valid fields: ${VALID_IDV_ORDERING_FIELDS.filter((f) => !f.startsWith("-")).join(", ")}. Use '-' prefix for descending.`,
+  };
 }
 
 /**

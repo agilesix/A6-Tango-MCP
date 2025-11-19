@@ -8,6 +8,7 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerHealthTool } from "./tools/health.js";
 import { registerSearchContractsTool } from "./tools/search-contracts.js";
+import { registerSearchIDVsTool } from "./tools/search-idvs.js";
 import { registerSearchGrantsTool } from "./tools/search-grants.js";
 import { registerGetVendorProfileTool } from "./tools/get-vendor-profile.js";
 import { registerSearchOpportunitiesTool } from "./tools/search-opportunities.js";
@@ -75,6 +76,7 @@ export class MCPServerAgent extends McpAgent<Env, Record<string, never>, MCPProp
 		// Register all tools with user's API key
 		registerHealthTool(this.server);
 		registerSearchContractsTool(this.server, env, cache, userApiKey);
+		registerSearchIDVsTool(this.server, env, cache, userApiKey);
 		registerSearchGrantsTool(this.server, env, cache, userApiKey);
 		registerGetVendorProfileTool(this.server, env, cache, userApiKey);
 		registerSearchOpportunitiesTool(this.server, env, cache, userApiKey);

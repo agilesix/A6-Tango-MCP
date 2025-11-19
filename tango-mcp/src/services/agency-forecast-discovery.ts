@@ -36,6 +36,12 @@ const CACHE_KEY = "agency_forecast_availability:discovered";
 const CACHE_TTL_SECONDS = 86400; // 24 hours
 
 /**
+ * Cache configuration for agency abbreviation mapping
+ */
+const MAPPING_CACHE_KEY = "agency_abbreviation_mapping";
+const MAPPING_CACHE_TTL_SECONDS = 86400; // 24 hours, same as discovery
+
+/**
  * JSON sampling configuration
  */
 const SAMPLE_LIMIT = 100;
@@ -70,6 +76,12 @@ export interface AgencyForecastDiscoveryResult {
 		static_updated?: string;
 		/** Warning for LLM agents */
 		warning?: string;
+		/** Number of abbreviations resolved to codes */
+		abbreviations_resolved?: number;
+		/** Whether abbreviation mapping was cached */
+		mapping_cached?: boolean;
+		/** Number of abbreviations that failed to resolve */
+		abbreviations_unresolved?: number;
 	};
 }
 
@@ -168,9 +180,14 @@ export class AgencyForecastDiscoveryService {
 			return {
 				...samplingResult,
 				errors: allErrors.length > 0 ? allErrors : undefined,
+				// Merge metadata from sampling result with any additional fields
 				metadata: {
 					count: samplingResult.agencies.size,
 					fallback_used: false,
+					// Preserve abbreviation resolution metadata from sampling
+					abbreviations_resolved: samplingResult.metadata?.abbreviations_resolved,
+					mapping_cached: samplingResult.metadata?.mapping_cached,
+					abbreviations_unresolved: samplingResult.metadata?.abbreviations_unresolved,
 				},
 			};
 		}
@@ -200,6 +217,7 @@ export class AgencyForecastDiscoveryService {
 	 * Sample forecasts from JSON API to discover agencies
 	 *
 	 * Queries the most recent 100 forecasts and extracts unique agency codes.
+	 * Resolves abbreviations to codes using the agency mapping.
 	 * Caches the result for 24 hours if successful.
 	 *
 	 * @param apiKey Tango API key for authentication
@@ -211,6 +229,10 @@ export class AgencyForecastDiscoveryService {
 		const errors: DiscoveryError[] = [];
 
 		try {
+			// Fetch abbreviation→code mapping first
+			const { mapping: abbreviationMapping, cached: mappingCached } =
+				await this.getAbbreviationMapping(apiKey);
+
 			// Query forecast JSON (CSV format not supported)
 			const response = await this.client.searchForecasts(
 				{
@@ -249,13 +271,17 @@ export class AgencyForecastDiscoveryService {
 					metadata: {
 						count: 0,
 						fallback_used: false,
+						mapping_cached: mappingCached,
 					},
 				};
 			}
 
-			// Parse JSON to extract agency codes
+			// Parse JSON to extract agency codes and resolve abbreviations
 			const jsonData = response.data as TangoForecastListResponse;
-			const agencies = this.extractAgenciesFromJSON(jsonData);
+			const { agencies, resolved, unresolved } = this.extractAgenciesFromJSON(
+				jsonData,
+				abbreviationMapping,
+			);
 
 			// If parsing failed or no agencies found, record error
 			if (agencies.size === 0) {
@@ -298,6 +324,9 @@ export class AgencyForecastDiscoveryService {
 				metadata: {
 					count: agencies.size,
 					fallback_used: false,
+					abbreviations_resolved: resolved,
+					mapping_cached: mappingCached,
+					abbreviations_unresolved: unresolved > 0 ? unresolved : undefined,
 				},
 			};
 		} catch (error) {
@@ -366,24 +395,139 @@ export class AgencyForecastDiscoveryService {
 	}
 
 	/**
-	 * Extract unique agency codes from JSON data
+	 * Fetch and cache agency abbreviation→code mapping
 	 *
-	 * Iterates through forecast results and collects all unique agency codes.
-	 * Handles missing or invalid data gracefully.
+	 * Queries /api/agencies/ to build a complete mapping of abbreviations to codes.
+	 * Caches the result for 24 hours (same TTL as forecast discovery).
+	 *
+	 * @param apiKey Tango API key for authentication
+	 * @returns Map of abbreviation→code, plus cache hit indicator
+	 */
+	private async getAbbreviationMapping(
+		apiKey: string,
+	): Promise<{ mapping: Map<string, string>; cached: boolean }> {
+		// Try cache first
+		if (this.cache) {
+			try {
+				const cached = await this.cache.get<Record<string, string>>(MAPPING_CACHE_KEY);
+				if (cached.hit && cached.data) {
+					// Convert object back to Map
+					const mapping = new Map<string, string>(Object.entries(cached.data));
+					console.info("Agency abbreviation mapping loaded from cache", {
+						entries: mapping.size,
+					});
+					return { mapping, cached: true };
+				}
+			} catch (error) {
+				console.warn("Cache read failed for agency mapping:", {
+					error: String(error),
+				});
+				// Continue to fetch from API
+			}
+		}
+
+		// Fetch from API
+		try {
+			console.info("Fetching agency abbreviation mapping from /api/agencies/");
+
+			// Fetch all agencies (use high limit to get complete mapping)
+			const response = await this.client.searchAgencies(
+				{ limit: 500 }, // Should cover all federal agencies
+				apiKey,
+			);
+
+			if (!response.success || !response.data) {
+				console.error("Failed to fetch agency mapping:", {
+					error: response.error,
+					status: response.status,
+				});
+				// Return empty mapping
+				return { mapping: new Map(), cached: false };
+			}
+
+			// Build abbreviation→code mapping
+			const mapping = new Map<string, string>();
+			for (const agency of response.data.results || []) {
+				if (agency.abbreviation && agency.code) {
+					const abbr = agency.abbreviation.trim().toUpperCase();
+					const code = agency.code.trim();
+					mapping.set(abbr, code);
+				}
+			}
+
+			console.info("Built agency abbreviation mapping", {
+				entries: mapping.size,
+				sample: Array.from(mapping.entries()).slice(0, 5),
+			});
+
+			// Cache the mapping (convert Map to object for JSON serialization)
+			if (this.cache && mapping.size > 0) {
+				try {
+					const mappingObject = Object.fromEntries(mapping.entries());
+					await this.cache.set(
+						MAPPING_CACHE_KEY,
+						mappingObject,
+						MAPPING_CACHE_TTL_SECONDS,
+					);
+				} catch (error) {
+					console.warn("Cache write failed for agency mapping:", {
+						error: String(error),
+					});
+					// Continue without caching
+				}
+			}
+
+			return { mapping, cached: false };
+		} catch (error) {
+			console.error("Unexpected error fetching agency mapping:", {
+				error: String(error),
+			});
+			return { mapping: new Map(), cached: false };
+		}
+	}
+
+	/**
+	 * Extract unique agency codes from JSON data and resolve abbreviations to codes
+	 *
+	 * Iterates through forecast results, extracts abbreviations, and resolves them
+	 * to official agency codes using the abbreviation→code mapping.
 	 *
 	 * @param jsonData Parsed JSON response from forecast API
-	 * @returns Map of agency codes (all set to true)
+	 * @param abbreviationMapping Map of abbreviation→code
+	 * @returns Object with resolved agency codes and resolution statistics
 	 */
-	private extractAgenciesFromJSON(jsonData: TangoForecastListResponse): Map<string, boolean> {
+	private extractAgenciesFromJSON(
+		jsonData: TangoForecastListResponse,
+		abbreviationMapping: Map<string, string>,
+	): {
+		agencies: Map<string, boolean>;
+		resolved: number;
+		unresolved: number;
+	} {
 		const agencies = new Map<string, boolean>();
+		let resolved = 0;
+		let unresolved = 0;
 
 		try {
-			// Extract unique agency codes from results array
+			// Extract unique agency abbreviations from results array
 			if (jsonData.results && Array.isArray(jsonData.results)) {
 				for (const forecast of jsonData.results) {
-					const agencyCode = forecast.agency?.trim();
-					if (agencyCode && agencyCode.length > 0) {
-						agencies.set(agencyCode, true);
+					const abbreviation = forecast.agency?.trim().toUpperCase();
+					if (abbreviation && abbreviation.length > 0) {
+						// Try to resolve abbreviation to code
+						const code = abbreviationMapping.get(abbreviation);
+						if (code) {
+							agencies.set(code, true);
+							resolved++;
+						} else {
+							// Store abbreviation as fallback (for backward compatibility)
+							agencies.set(abbreviation, true);
+							unresolved++;
+							console.warn("Unable to resolve agency abbreviation to code", {
+								abbreviation,
+								forecast_id: forecast.id,
+							});
+						}
 					}
 				}
 			}
@@ -391,10 +535,16 @@ export class AgencyForecastDiscoveryService {
 			console.error("JSON parsing failed during agency extraction:", {
 				error: String(error),
 			});
-			// Return empty map - error will be handled upstream
+			// Return empty result - error will be handled upstream
 		}
 
-		return agencies;
+		console.info("Agency abbreviation resolution complete", {
+			total: agencies.size,
+			resolved,
+			unresolved,
+		});
+
+		return { agencies, resolved, unresolved };
 	}
 
 	/**

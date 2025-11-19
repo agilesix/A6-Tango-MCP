@@ -18,18 +18,21 @@ import type {
 	TangoOpportunityResponse,
 	TangoVendorResponse,
 	TangoForecastResponse,
+	TangoIDVResponse,
 } from "@/types/tango-api";
 
 /**
  * IDV (Indefinite Delivery Vehicle) Type Descriptions
- * These codes identify the type of contract vehicle used for parent awards
+ * These codes identify the type of contract vehicle used for parent awards or IDVs
+ *
+ * CRITICAL: Used in both normalizeContract (for parent_award) and normalizeIDV (for IDV type)
  */
 const IDV_TYPE_DESCRIPTIONS: Record<string, string> = {
-	A: "BPA (Blanket Purchase Agreement)",
-	B: "BOA (Basic Ordering Agreement)",
+	A: "GWAC (Government-Wide Acquisition Contract)",
+	B: "IDC (Indefinite Delivery Contract)",
 	C: "FSS (Federal Supply Schedule)",
-	D: "GWAC (Government-Wide Acquisition Contract)",
-	E: "IDIQ (Indefinite Delivery Indefinite Quantity)",
+	D: "BOA (Basic Ordering Agreement)",
+	E: "BPA (Blanket Purchase Agreement)",
 };
 
 /**
@@ -495,6 +498,69 @@ export interface NormalizedForecast {
 	contract_vehicle: string | null;
 	/** Data quality warnings (e.g., suspicious dates, missing data) */
 	data_quality_warnings?: string[];
+}
+
+/**
+ * Normalized IDV object with consistent field names
+ */
+export interface NormalizedIDV {
+	idv_id: string;
+	piid: string | null;
+	description: string | null;
+
+	vendor: {
+		name: string;
+		uei: string | null;
+	};
+
+	agency: {
+		name: string | null;
+		code: string | null;
+		office: string | null;
+	};
+
+	funding_office: {
+		name: string | null;
+		code: string | null;
+		office: string | null;
+	} | null;
+
+	idv_type: {
+		code: string | null;
+		description: string | null;
+	};
+
+	award_amount: number;
+	total_contract_value: number | null;
+	award_date: string | null;
+	fiscal_year: number | null;
+
+	naics_code: string | null;
+	psc_code: string | null;
+	set_aside: string | null;
+
+	period_of_performance: {
+		start_date: string | null;
+		last_date_to_order: string | null;
+	};
+
+	multiple_or_single_award: {
+		code: string | null;
+		description: string | null;
+	} | null;
+
+	parent_award: {
+		piid: string | null;
+		idv_type: string | null;
+		agency_name: string | null;
+	} | null;
+
+	solicitation_identifier: string | null;
+	place_of_performance: {
+		city: string | null;
+		state: string | null;
+		country: string | null;
+	};
 }
 
 /**
@@ -1296,4 +1362,92 @@ export function normalizeForecast(raw: TangoForecastResponse): NormalizedForecas
 	}
 
 	return normalized;
+}
+
+/**
+ * Normalize IDV response to consistent structure
+ *
+ * CRITICAL: Applies IDV type code translation in response
+ * - A → GWAC (Government-Wide Acquisition Contract)
+ * - B → IDC (Indefinite Delivery Contract)
+ * - C → FSS (Federal Supply Schedule)
+ * - D → BOA (Basic Ordering Agreement)
+ * - E → BPA (Blanket Purchase Agreement)
+ *
+ * @param idv Raw Tango API IDV response
+ * @returns Normalized IDV with consistent fields
+ */
+export function normalizeIDV(idv: TangoIDVResponse): NormalizedIDV {
+	// IDV type code translation
+	const idvTypeCode = idv.idv_type?.code || null;
+	const idvTypeDescription = idvTypeCode
+		? IDV_TYPE_DESCRIPTIONS[idvTypeCode]
+		: null;
+
+	return {
+		idv_id: idv.key || "UNKNOWN",
+		piid: idv.piid || null,
+		description: idv.description || null,
+
+		vendor: {
+			name: idv.recipient?.display_name || "Unknown Vendor",
+			uei: idv.recipient?.uei || null,
+		},
+
+		agency: {
+			name: idv.awarding_office?.agency_name || null,
+			code: idv.awarding_office?.agency_code || null,
+			office: idv.awarding_office?.office_name || null,
+		},
+
+		funding_office: idv.funding_office
+			? {
+					name: idv.funding_office.agency_name || null,
+					code: idv.funding_office.agency_code || null,
+					office: idv.funding_office.office_name || null,
+				}
+			: null,
+
+		idv_type: {
+			code: idvTypeCode,
+			description: idvTypeDescription || idv.idv_type?.description || null,
+		},
+
+		award_amount: idv.obligated || 0,
+		total_contract_value: idv.total_contract_value || null,
+		award_date: idv.award_date || null,
+		fiscal_year: idv.fiscal_year || null,
+
+		naics_code: idv.naics_code || null,
+		psc_code: idv.psc_code || null,
+		set_aside: idv.set_aside || null,
+
+		period_of_performance: {
+			start_date: idv.period_of_performance?.start_date || null,
+			last_date_to_order: idv.period_of_performance?.last_date_to_order || null,
+		},
+
+		multiple_or_single_award: idv.multiple_or_single_award_idv
+			? {
+					code: idv.multiple_or_single_award_idv.code || null,
+					description: idv.multiple_or_single_award_idv.description || null,
+				}
+			: null,
+
+		parent_award: idv.parent_award
+			? {
+					piid: idv.parent_award.piid || null,
+					idv_type: idv.parent_award.idv_type || null,
+					agency_name: idv.parent_award.awarding_office?.agency_name || null,
+				}
+			: null,
+
+		solicitation_identifier: idv.solicitation_identifier || null,
+
+		place_of_performance: {
+			city: idv.place_of_performance?.city_name || null,
+			state: idv.place_of_performance?.state_name || null,
+			country: idv.place_of_performance?.country_name || null,
+		},
+	};
 }

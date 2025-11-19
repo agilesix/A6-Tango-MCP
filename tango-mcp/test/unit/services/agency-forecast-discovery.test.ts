@@ -23,6 +23,7 @@ import {
 function createMockClient(): TangoApiClient {
 	return {
 		searchForecasts: vi.fn(),
+		searchAgencies: vi.fn(),
 	} as unknown as TangoApiClient;
 }
 
@@ -47,6 +48,21 @@ const SAMPLE_JSON: TangoForecastListResponse = {
 		{ id: 3, agency: "HHS", title: "Medical Supplies", naics_code: "339113" },
 		{ id: 4, agency: "GSA", title: "IT Support Services", naics_code: "541519" },
 		{ id: 5, agency: "DHS", title: "Border Security Tech", naics_code: "334511" },
+	],
+	count: 5,
+	total: 5,
+};
+
+/**
+ * Sample agency mapping data for testing
+ */
+const SAMPLE_AGENCIES = {
+	results: [
+		{ code: "7500", name: "Department of Health and Human Services", abbreviation: "HHS" },
+		{ code: "7000", name: "Department of Homeland Security", abbreviation: "DHS" },
+		{ code: "4700", name: "General Services Administration", abbreviation: "GSA" },
+		{ code: "9700", name: "Department of Defense", abbreviation: "DOD" },
+		{ code: "3600", name: "Department of Veterans Affairs", abbreviation: "VA" },
 	],
 	count: 5,
 	total: 5,
@@ -508,6 +524,272 @@ describe("AgencyForecastDiscoveryService", () => {
 			const service = createAgencyForecastDiscoveryService(mockClient);
 
 			expect(service).toBeInstanceOf(AgencyForecastDiscoveryService);
+		});
+	});
+
+	describe("Abbreviation Resolution", () => {
+		beforeEach(() => {
+			// Reset all mocks for clean state
+			vi.clearAllMocks();
+
+			// Mock agency mapping cache miss (force API call)
+			vi.mocked(mockCache.get).mockImplementation((key) => {
+				if (key === "agency_abbreviation_mapping") {
+					return Promise.resolve({ success: true, hit: false });
+				}
+				// Discovery cache miss
+				return Promise.resolve({ success: true, hit: false });
+			});
+
+			// Mock agencies API response
+			vi.mocked(mockClient.searchAgencies).mockResolvedValue({
+				success: true,
+				data: SAMPLE_AGENCIES,
+			} as any);
+
+			// Mock cache set
+			vi.mocked(mockCache.set).mockResolvedValue({
+				success: true,
+			});
+		});
+
+		it("should resolve abbreviations to agency codes", async () => {
+			// Mock forecast response with abbreviations
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: SAMPLE_JSON,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should resolve abbreviations to codes
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+			expect(result.agencies.has("4700")).toBe(true); // GSA
+
+			// Should NOT contain abbreviations (they're resolved to codes)
+			expect(result.agencies.has("HHS")).toBe(false);
+			expect(result.agencies.has("DHS")).toBe(false);
+			expect(result.agencies.has("GSA")).toBe(false);
+
+			// Should include resolution metadata
+			expect(result.metadata?.abbreviations_resolved).toBe(5); // 2 HHS + 2 DHS + 1 GSA
+			expect(result.metadata?.mapping_cached).toBe(false);
+			expect(result.metadata?.abbreviations_unresolved).toBeUndefined();
+		});
+
+		it("should use cached abbreviation mapping", async () => {
+			// Mock mapping cache hit
+			vi.mocked(mockCache.get).mockImplementation((key) => {
+				if (key === "agency_abbreviation_mapping") {
+					return Promise.resolve({
+						success: true,
+						hit: true,
+						data: {
+							HHS: "7500",
+							DHS: "7000",
+							GSA: "4700",
+							DOD: "9700",
+							VA: "3600",
+						},
+					});
+				}
+				// Discovery cache miss
+				return Promise.resolve({ success: true, hit: false });
+			});
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: SAMPLE_JSON,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should use cached mapping
+			expect(result.metadata?.mapping_cached).toBe(true);
+
+			// Should NOT call agencies API
+			expect(mockClient.searchAgencies).not.toHaveBeenCalled();
+
+			// Should still resolve correctly
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+		});
+
+		it("should handle unresolvable abbreviations gracefully", async () => {
+			// Mock forecast with unknown abbreviation
+			const forecastWithUnknown: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: "HHS", title: "Known agency" },
+					{ id: 2, agency: "UNKNOWN", title: "Unknown agency" },
+					{ id: 3, agency: "DHS", title: "Another known agency" },
+				],
+				count: 3,
+				total: 3,
+			};
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: forecastWithUnknown,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should resolve known abbreviations
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+
+			// Should keep unresolvable abbreviation as fallback
+			expect(result.agencies.has("UNKNOWN")).toBe(true);
+
+			// Should track resolution statistics
+			expect(result.metadata?.abbreviations_resolved).toBe(2);
+			expect(result.metadata?.abbreviations_unresolved).toBe(1);
+		});
+
+		it("should handle case-insensitive abbreviation matching", async () => {
+			// Mock forecast with mixed-case abbreviations
+			const forecastMixedCase: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: "hhs", title: "Lowercase" },
+					{ id: 2, agency: "Dhs", title: "Mixed case" },
+					{ id: 3, agency: "GSA", title: "Uppercase" },
+				],
+				count: 3,
+				total: 3,
+			};
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: forecastMixedCase,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should resolve all regardless of case
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+			expect(result.agencies.has("4700")).toBe(true); // GSA
+
+			// All should be resolved
+			expect(result.metadata?.abbreviations_resolved).toBe(3);
+			expect(result.metadata?.abbreviations_unresolved).toBeUndefined();
+		});
+
+		it("should handle agency mapping API failure gracefully", async () => {
+			// Mock agencies API failure
+			vi.mocked(mockClient.searchAgencies).mockResolvedValue({
+				success: false,
+				error: "Agencies API unavailable",
+				status: 503,
+			} as any);
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: SAMPLE_JSON,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should still return results (using abbreviations as fallback)
+			expect(result.agencies.size).toBe(3);
+
+			// Should contain abbreviations (not resolved to codes)
+			expect(result.agencies.has("HHS")).toBe(true);
+			expect(result.agencies.has("DHS")).toBe(true);
+			expect(result.agencies.has("GSA")).toBe(true);
+
+			// All should be unresolved
+			expect(result.metadata?.abbreviations_unresolved).toBe(5);
+			expect(result.metadata?.abbreviations_resolved).toBe(0);
+		});
+
+		it("should cache abbreviation mapping after successful fetch", async () => {
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: SAMPLE_JSON,
+				format: "json",
+			} as any);
+
+			await service.discoverAgencies("test-api-key");
+
+			// Should cache the mapping
+			expect(mockCache.set).toHaveBeenCalledWith(
+				"agency_abbreviation_mapping",
+				expect.objectContaining({
+					HHS: "7500",
+					DHS: "7000",
+					GSA: "4700",
+					DOD: "9700",
+					VA: "3600",
+				}),
+				86400, // 24 hour TTL
+			);
+		});
+
+		it("should handle whitespace in abbreviations during resolution", async () => {
+			// Mock forecast with whitespace
+			const forecastWithWhitespace: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: " HHS ", title: "Whitespace around" },
+					{ id: 2, agency: "  DHS", title: "Whitespace before" },
+					{ id: 3, agency: "GSA  ", title: "Whitespace after" },
+				],
+				count: 3,
+				total: 3,
+			};
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: forecastWithWhitespace,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should resolve all correctly (whitespace trimmed)
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+			expect(result.agencies.has("4700")).toBe(true); // GSA
+
+			// All should be resolved
+			expect(result.metadata?.abbreviations_resolved).toBe(3);
+		});
+
+		it("should deduplicate resolved codes", async () => {
+			// Mock forecast with duplicate abbreviations
+			const forecastWithDuplicates: TangoForecastListResponse = {
+				results: [
+					{ id: 1, agency: "HHS", title: "First HHS" },
+					{ id: 2, agency: "HHS", title: "Second HHS" },
+					{ id: 3, agency: "HHS", title: "Third HHS" },
+					{ id: 4, agency: "DHS", title: "First DHS" },
+					{ id: 5, agency: "DHS", title: "Second DHS" },
+				],
+				count: 5,
+				total: 5,
+			};
+
+			vi.mocked(mockClient.searchForecasts).mockResolvedValue({
+				success: true,
+				data: forecastWithDuplicates,
+				format: "json",
+			} as any);
+
+			const result = await service.discoverAgencies("test-api-key");
+
+			// Should only have 2 unique codes
+			expect(result.agencies.size).toBe(2);
+			expect(result.agencies.has("7500")).toBe(true); // HHS
+			expect(result.agencies.has("7000")).toBe(true); // DHS
+
+			// Resolution count is total occurrences, not unique
+			expect(result.metadata?.abbreviations_resolved).toBe(5);
 		});
 	});
 });

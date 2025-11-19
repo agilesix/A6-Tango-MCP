@@ -26,6 +26,7 @@ import type {
   TangoForecastListResponse,
   TangoForecastDetailResponse,
   TangoAgencyListResponse,
+  TangoIDVListResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -87,6 +88,41 @@ export class TangoApiClient {
     apiKey: string,
   ): Promise<ApiResponse<TangoContractListResponse>> {
     return this.get<TangoContractListResponse>("/contracts/", params, apiKey);
+  }
+
+  /**
+   * Search Indefinite Delivery Vehicles (IDVs)
+   *
+   * IDVs are master contract vehicles like GWACs, IDIQs, BPAs, and GSA Schedules.
+   * Task orders issued under these vehicles are found via /contracts/ endpoint.
+   *
+   * Supported parameters:
+   * - search: Free-text search across titles and descriptions
+   * - uei: Vendor UEI (pipe-separated for multiple)
+   * - recipient: Vendor name search
+   * - idv_type: A=GWAC, B=IDC, C=FSS, D=BOA, E=BPA (pipe-separated)
+   * - naics: NAICS codes (pipe-separated)
+   * - psc: PSC codes (pipe-separated)
+   * - set_aside: Set-aside type codes
+   * - awarding_agency: Agency code or name
+   * - funding_agency: Funding agency code or name
+   * - award_date_gte/lte: Award date range
+   * - fiscal_year_gte/lte: Fiscal year range
+   * - expiring_gte/lte: Filter by last_date_to_order
+   * - pop_start_date_gte/lte: Performance period start date range
+   * - limit: Results per page (max 100)
+   * - cursor: Pagination cursor
+   * - ordering: Sort field
+   *
+   * @param params Query parameters
+   * @param apiKey Tango API key
+   * @returns Promise resolving to IDV list response
+   */
+  async searchIDVs(
+    params: Record<string, unknown>,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoIDVListResponse>> {
+    return this.get<TangoIDVListResponse>("/idvs/", params, apiKey);
   }
 
   /**

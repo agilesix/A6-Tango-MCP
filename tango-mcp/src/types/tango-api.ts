@@ -159,6 +159,115 @@ export interface TangoContractListResponse {
 }
 
 /**
+ * IDV Type code-to-description mapping
+ */
+export interface TangoIDVType {
+	code?: string; // A, B, C, D, E
+	description?: string;
+}
+
+/**
+ * Multiple or Single Award IDV designation
+ */
+export interface TangoIDVMultipleOrSingleAward {
+	code?: string; // M = Multiple | S = Single
+	description?: string;
+}
+
+/**
+ * IDV response from Tango API /idvs/ endpoint (list view)
+ */
+export interface TangoIDVResponse {
+	// Identifiers
+	key?: string;
+	piid?: string;
+
+	// Basic Info
+	description?: string;
+	award_date?: string;
+	fiscal_year?: number;
+
+	// IDV Classification
+	idv_type?: TangoIDVType;
+	multiple_or_single_award_idv?: TangoIDVMultipleOrSingleAward;
+	type_of_idc?: string;
+
+	// Recipient/Vendor
+	recipient?: {
+		uei?: string;
+		display_name?: string;
+	};
+
+	// Agencies
+	awarding_office?: {
+		office_code?: string;
+		office_name?: string;
+		agency_code?: string;
+		agency_name?: string;
+		department_code?: string;
+		department_name?: string;
+	};
+
+	funding_office?: {
+		office_code?: string;
+		office_name?: string;
+		agency_code?: string;
+		agency_name?: string;
+		department_code?: string;
+		department_name?: string;
+	};
+
+	// Classifications
+	naics_code?: string;
+	psc_code?: string;
+	set_aside?: string;
+
+	// Performance Period
+	period_of_performance?: {
+		start_date?: string;
+		last_date_to_order?: string;
+	};
+
+	// Values
+	obligated?: number;
+	total_contract_value?: number;
+
+	// Parent Award (if sub-IDV)
+	parent_award?: {
+		key?: string;
+		piid?: string;
+		description?: string;
+		idv_type?: string;
+		awarding_office?: {
+			agency_name?: string;
+			agency_code?: string;
+		};
+	};
+
+	// Other fields
+	solicitation_identifier?: string;
+	legislative_mandates?: Record<string, unknown>;
+	subawards_summary?: Record<string, unknown>;
+	place_of_performance?: {
+		city_name?: string;
+		state_name?: string;
+		country_name?: string;
+		zip?: string;
+	};
+}
+
+/**
+ * Pagination wrapper for IDV list endpoint
+ */
+export interface TangoIDVListResponse {
+	results: TangoIDVResponse[];
+	total?: number;
+	count?: number;
+	next?: string | null;
+	previous?: string | null;
+}
+
+/**
  * Grant opportunity response from Tango API /grants/ endpoint
  * Source: Grants.gov (pre-award opportunities)
  *
