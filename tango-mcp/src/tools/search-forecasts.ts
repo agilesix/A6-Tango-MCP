@@ -16,6 +16,7 @@ import { normalizeForecast } from "@/utils/normalizer";
 import { extractCursorFromUrl } from "@/utils/sort-helpers";
 import { handleCsvExport } from "@/utils/csv-export";
 import { toPipeDelimitedString } from "@/utils/array-helpers";
+import { analyzeQuery } from "@/utils/query-analyzer";
 
 /**
  * Register search forecasts tool with the MCP server
@@ -28,13 +29,13 @@ export function registerSearchForecastsTool(
 ): void {
 	server.tool(
 		"search_tango_forecasts",
-		"Search federal procurement forecast opportunities from government agencies that publish forecasts. Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. IMPORTANT: Not all agencies publish forecasts to Tango (e.g., VA does not). Common agencies with forecasts: HHS, DHS, GSA, NIH, FAA, NIST. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
+		"Search federal procurement forecast opportunities from government agencies that publish forecasts. Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. SEARCH BEHAVIOR: The 'query' parameter performs AND-logic phrase matching - ALL words in your query must appear in results. Multi-word queries like 'artificial intelligence AI machine learning' often return zero results. BEST PRACTICES: Use 1-2 specific keywords ('cybersecurity', 'cloud services'), separate agency from topic using the agency parameter, try single terms first ('AI' before 'artificial intelligence AI'). EXAMPLES THAT WORK: query='cybersecurity' with agency='HHS', query='professional services', query='AI'. EXAMPLES THAT DON'T WORK: query='HHS cloud AI services' (mixing agency + topics), query='artificial intelligence AI ML' (too many synonyms). Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. IMPORTANT: Not all agencies publish forecasts to Tango (e.g., VA does not). Common agencies with forecasts: HHS, DHS, GSA, NIH, FAA, NIST. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
 		{
 			query: z
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across forecast titles and descriptions. Example: 'cloud infrastructure' or 'professional services'",
+					"Free-text search across forecast titles and descriptions. API uses AND logic - ALL words must match. Effective queries: Single concepts like 'cybersecurity', 'cloud infrastructure', or 'IT modernization'. Ineffective queries: Multiple synonyms ('AI artificial intelligence ML'), mixing agency + topic ('VA cybersecurity'). TIP: Start simple. Try 'AI' before 'artificial intelligence AI machine learning'. Use other parameters (agency, naics_code) for structured filtering instead of mixing them into the query string. Examples: 'cloud infrastructure', 'professional services', 'medical equipment'",
 				),
 			agency: z
 				.string()
@@ -253,6 +254,59 @@ export function registerSearchForecastsTool(
 				const normalizedForecasts = (response.data.results || []).map(
 					normalizeForecast,
 				);
+
+				// Check for zero results with query and provide enhanced guidance
+				if (normalizedForecasts.length === 0 && sanitized.query) {
+					const analysis = analyzeQuery(sanitized.query);
+
+					// If high confidence agency detection, provide enhanced response with suggestions
+					if (analysis.confidence === "high" && analysis.suggestedAgency) {
+						logger.info("Zero results with detected agency pattern", {
+							query: sanitized.query,
+							detectedAgency: analysis.suggestedAgency,
+							confidence: analysis.confidence,
+						});
+
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											data: [],
+											total: 0,
+											returned: 0,
+											filters: sanitized,
+											suggestions: {
+												detected_issue: "Zero results for multi-concept query",
+												recommended_approach: {
+													agency: analysis.suggestedAgency,
+													query: analysis.refinedQuery || sanitized.query,
+												},
+												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API uses AND logic (all words must match) and works best when agency filters are separated from free-text search. Try using agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}". Note: Not all agencies publish forecasts to Tango. If this agency has no forecasts, you'll get zero results even with the correct parameters.`,
+												example: {
+													tool: "search_tango_forecasts",
+													params: {
+														agency: analysis.suggestedAgency,
+														query: analysis.refinedQuery || undefined,
+														limit: sanitized.limit,
+													},
+												},
+											},
+											execution: {
+												duration_ms: Date.now() - startTime,
+												cached: response.cache?.hit || false,
+												api_calls: 1,
+											},
+										},
+										null,
+										2,
+									),
+								},
+							],
+						};
+					}
+				}
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);

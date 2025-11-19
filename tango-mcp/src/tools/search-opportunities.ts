@@ -25,6 +25,7 @@ import {
 	toUppercasePipeString,
 	parseMultiValueParam,
 } from "@/utils/array-helpers";
+import { analyzeQuery } from "@/utils/query-analyzer";
 
 /**
  * Register search opportunities tool with the MCP server
@@ -37,13 +38,13 @@ export function registerSearchOpportunitiesTool(
 ): void {
 	server.tool(
 		"search_tango_opportunities",
-		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status (boolean: true/false/undefined), and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
+		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. SEARCH BEHAVIOR: The 'query' parameter uses AND logic - ALL words must match. Multi-word queries like 'cloud services AI infrastructure' often return zero results. BEST PRACTICES: Use 1-2 specific keywords ('cybersecurity', 'cloud services'), separate agency from topic using the agency parameter, try single terms first. EXAMPLES THAT WORK: query='cybersecurity' with agency='DHS', query='professional services', query='cloud'. EXAMPLES THAT DON'T WORK: query='DHS cloud AI services' (mixing agency + topics), query='cybersecurity security IT' (redundant synonyms). Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status (boolean: true/false/undefined), and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
 		{
 			query: z
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across opportunity titles and descriptions. Example: 'cybersecurity' or 'cloud services'",
+					"Free-text search across opportunity titles and descriptions. API uses AND logic - ALL words must match. Effective queries: Single concepts like 'cybersecurity', 'cloud services', or 'professional services'. Ineffective queries: Multiple synonyms ('IT information technology'), mixing agency + topic ('VA cloud services'). TIP: Start simple. Try 'cloud' before 'cloud infrastructure services platform'. Use other parameters (agency, naics_code) for structured filtering. Examples: 'cybersecurity', 'cloud services', 'medical equipment'",
 				),
 			agency: z
 				.string()
@@ -283,6 +284,59 @@ export function registerSearchOpportunitiesTool(
 				const normalizedOpportunities = (response.data.results || []).map(
 					normalizeOpportunity,
 				);
+
+				// Check for zero results with query and provide enhanced guidance
+				if (normalizedOpportunities.length === 0 && sanitized.query) {
+					const analysis = analyzeQuery(sanitized.query);
+
+					// If high confidence agency detection, provide enhanced response with suggestions
+					if (analysis.confidence === "high" && analysis.suggestedAgency) {
+						logger.info("Zero results with detected agency pattern", {
+							query: sanitized.query,
+							detectedAgency: analysis.suggestedAgency,
+							confidence: analysis.confidence,
+						});
+
+						return {
+							content: [
+								{
+									type: "text",
+									text: JSON.stringify(
+										{
+											data: [],
+											total: 0,
+											returned: 0,
+											filters: sanitized,
+											suggestions: {
+												detected_issue: "Zero results for multi-concept query",
+												recommended_approach: {
+													agency: analysis.suggestedAgency,
+													query: analysis.refinedQuery || sanitized.query,
+												},
+												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API uses AND logic (all words must match) and works best when agency filters are separated from free-text search. Try using agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}".`,
+												example: {
+													tool: "search_tango_opportunities",
+													params: {
+														agency: analysis.suggestedAgency,
+														query: analysis.refinedQuery || undefined,
+														limit: sanitized.limit,
+													},
+												},
+											},
+											execution: {
+												duration_ms: Date.now() - startTime,
+												cached: response.cache?.hit || false,
+												api_calls: 1,
+											},
+										},
+										null,
+										2,
+									),
+								},
+							],
+						};
+					}
+				}
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
