@@ -69,10 +69,10 @@ export function registerSearchContractsTool(
 					"Funding agency name or code (may differ from awarding agency). Example: 'Department of Defense' or 'DOD'",
 				),
 			naics_code: z
-				.string()
+				.union([z.string(), z.array(z.string())])
 				.optional()
 				.describe(
-					"NAICS industry classification code (2-6 digits). Example: '541512' for computer systems design",
+					"NAICS industry classification code(s). Single code: '541512', Multiple codes: ['541512', '541511', '541519'] or pipe-separated '541512|541511|541519'. Searches contracts matching ANY of the provided codes (OR logic). Supports 2-6 digit codes.",
 				),
 			psc_code: z
 				.string()
@@ -130,7 +130,7 @@ export function registerSearchContractsTool(
 				.string()
 				.optional()
 				.describe(
-					"Contract set-aside category. Values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A', 'HUBZone'. Leave empty for all types.",
+					"Contract set-aside category. Common values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A' (8(a) Program), 'HZC' (HUBZone), 'VOSB' (Veteran-Owned), 'NONE' (Full & Open). Use | for multiple: 'SDVOSB|VOSB'. See documentation for complete list of ~20 codes.",
 				),
 			fiscal_year: z
 				.number()
@@ -236,7 +236,11 @@ export function registerSearchContractsTool(
 					params.awarding_agency = sanitized.awarding_agency;
 				if (sanitized.funding_agency)
 					params.funding_agency = sanitized.funding_agency;
-				if (sanitized.naics_code) params.naics = sanitized.naics_code;
+				if (sanitized.naics_code) {
+					params.naics = Array.isArray(sanitized.naics_code)
+						? sanitized.naics_code.join("|")
+						: sanitized.naics_code;
+				}
 				if (sanitized.psc_code) params.psc = sanitized.psc_code;
 				if (sanitized.award_date_start)
 					params.award_date_gte = sanitized.award_date_start;

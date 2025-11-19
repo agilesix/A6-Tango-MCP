@@ -6,14 +6,18 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Env } from "@/types/env";
-import { TangoApiClient } from "@/api/tango-client";
-import { sanitizeToolArgs } from "@/middleware/sanitization";
-import { normalizeGrantOpportunity } from "@/utils/normalizer";
-import type { CacheManager } from "@/cache/kv-cache";
-import { getLogger } from "@/utils/logger";
-import { validateGrantOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
+import { TangoApiClient } from "@/api/tango-client";
+import type { CacheManager } from "@/cache/kv-cache";
+import { sanitizeToolArgs } from "@/middleware/sanitization";
+import type { Env } from "@/types/env";
+import { getLogger } from "@/utils/logger";
+import { normalizeGrantOpportunity } from "@/utils/normalizer";
+import {
+	extractCursorFromUrl,
+	getOrderingDescription,
+	validateGrantOrdering,
+} from "@/utils/sort-helpers";
 
 /**
  * Register search grants tool with the MCP server
@@ -22,7 +26,7 @@ export function registerSearchGrantsTool(
 	server: McpServer,
 	env: Env,
 	cache?: CacheManager,
-	userApiKey?: string
+	userApiKey?: string,
 ): void {
 	server.tool(
 		"search_tango_grants",
@@ -32,91 +36,91 @@ export function registerSearchGrantsTool(
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across opportunity titles and descriptions. Example: 'education', 'research', 'community development'"
+					"Free-text search across opportunity titles and descriptions. Example: 'education', 'research', 'community development'",
 				),
 			agency: z
 				.string()
 				.optional()
 				.describe(
-					"Awarding agency abbreviation. Example: 'ED' (Education), 'NSF' (National Science Foundation), 'HHS' (Health and Human Services)"
+					"Awarding agency abbreviation. Example: 'ED' (Education), 'NSF' (National Science Foundation), 'HHS' (Health and Human Services)",
 				),
 			naics_code: z
-				.string()
+				.union([z.string(), z.array(z.string())])
 				.optional()
 				.describe(
-					"NAICS industry classification code (2-6 digits). Example: '541512' (Computer systems design), '611' (Educational services)"
+					"NAICS industry classification code(s). Single code: '541512', Multiple codes: ['541512', '541511', '541519'] or pipe-separated '541512|541511|541519'. Searches grants matching ANY of the provided codes (OR logic). Supports 2-6 digit codes.",
 				),
 			psc_code: z
 				.string()
 				.optional()
 				.describe(
-					"Product/Service Code. Example: 'R425' (Support - professional: engineering/technical)"
+					"Product/Service Code. Example: 'R425' (Support - professional: engineering/technical)",
 				),
 			awarding_agency: z
 				.string()
 				.optional()
 				.describe(
-					"Awarding agency name or code. Example: 'Department of Education', 'ED'"
+					"Awarding agency name or code. Example: 'Department of Education', 'ED'",
 				),
 			cfda_number: z
 				.string()
 				.optional()
 				.describe(
-					"Catalog of Federal Domestic Assistance number. Example: '84.027' (Special Education Grants), '93.778' (Medicaid)"
+					"Catalog of Federal Domestic Assistance number. Example: '84.027' (Special Education Grants), '93.778' (Medicaid)",
 				),
 			posted_date_after: z
 				.string()
 				.optional()
 				.describe(
-					"Earliest posted date to include (YYYY-MM-DD format). Example: '2024-01-01'"
+					"Earliest posted date to include (YYYY-MM-DD format). Example: '2024-01-01'",
 				),
 			posted_date_before: z
 				.string()
 				.optional()
 				.describe(
-					"Latest posted date to include (YYYY-MM-DD format). Example: '2024-12-31'"
+					"Latest posted date to include (YYYY-MM-DD format). Example: '2024-12-31'",
 				),
 			response_date_after: z
 				.string()
 				.optional()
 				.describe(
-					"Earliest response deadline to include (YYYY-MM-DD format). Only opportunities with deadlines on or after this date. Example: '2024-12-01'"
+					"Earliest response deadline to include (YYYY-MM-DD format). Only opportunities with deadlines on or after this date. Example: '2024-12-01'",
 				),
 			response_date_before: z
 				.string()
 				.optional()
 				.describe(
-					"Latest response deadline to include (YYYY-MM-DD format). Example: '2024-12-31'"
+					"Latest response deadline to include (YYYY-MM-DD format). Example: '2024-12-31'",
 				),
 			applicant_types: z
 				.string()
 				.optional()
 				.describe(
-					"Filter by eligible applicant types. Comma-separated codes: 'SG' (State governments), 'LG' (Local governments), 'IHE' (Higher education), 'NP' (Nonprofits), 'PR' (Private), 'IND' (Individuals). Example: 'SG,LG' for state and local governments"
+					"Filter by eligible applicant types. Comma-separated codes: 'SG' (State governments), 'LG' (Local governments), 'IHE' (Higher education), 'NP' (Nonprofits), 'PR' (Private), 'IND' (Individuals). Example: 'SG,LG' for state and local governments",
 				),
 			funding_categories: z
 				.string()
 				.optional()
 				.describe(
-					"Filter by funding activity categories. Comma-separated codes: 'ED' (Education), 'HL' (Health), 'ENV' (Environment), 'CD' (Community Development). Example: 'ED' or 'HL,ED'"
+					"Filter by funding activity categories. Comma-separated codes: 'ED' (Education), 'HL' (Health), 'ENV' (Environment), 'CD' (Community Development). Example: 'ED' or 'HL,ED'",
 				),
 			funding_instruments: z
 				.string()
 				.optional()
 				.describe(
-					"Filter by funding instrument types. Comma-separated codes: 'G' (Grant), 'CA' (Cooperative Agreement), 'PC' (Procurement Contract), 'O' (Other). Example: 'G' for grants only, 'G,CA' for grants and cooperative agreements"
+					"Filter by funding instrument types. Comma-separated codes: 'G' (Grant), 'CA' (Cooperative Agreement), 'PC' (Procurement Contract), 'O' (Other). Example: 'G' for grants only, 'G,CA' for grants and cooperative agreements",
 				),
 			status: z
 				.string()
 				.optional()
 				.describe(
-					"Filter by opportunity status. Values: 'P' (Posted - active, accepting applications), 'F' (Forecasted - upcoming opportunities). Example: 'P' for posted only"
+					"Filter by opportunity status. Values: 'P' (Posted - active, accepting applications), 'F' (Forecasted - upcoming opportunities). Example: 'P' for posted only",
 				),
 			ordering: z
 				.string()
 				.optional()
 				.describe(
-					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_date', '-response_date', 'award_amount', '-award_amount'. Example: '-response_date' for nearest deadline first."
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_date', '-response_date', 'award_amount', '-award_amount'. Example: '-response_date' for nearest deadline first.",
 				),
 			limit: z
 				.number()
@@ -126,13 +130,13 @@ export function registerSearchGrantsTool(
 				.default(10)
 				.optional()
 				.describe(
-					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses.",
 				),
 			cursor: z
 				.string()
 				.optional()
 				.describe(
-					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets.",
 				),
 		},
 		async (args) => {
@@ -148,7 +152,9 @@ export function registerSearchGrantsTool(
 				// Get API key from user or environment
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
-					logger.error("Missing API key", undefined, { tool: "search_tango_grants" });
+					logger.error("Missing API key", undefined, {
+						tool: "search_tango_grants",
+					});
 					return {
 						content: [
 							{
@@ -163,7 +169,7 @@ export function registerSearchGrantsTool(
 										recoverable: true,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -174,9 +180,14 @@ export function registerSearchGrantsTool(
 				const params: Record<string, unknown> = {};
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
-				if (sanitized.naics_code) params.naics_code = sanitized.naics_code;
+				if (sanitized.naics_code) {
+					params.naics_code = Array.isArray(sanitized.naics_code)
+						? sanitized.naics_code.join("|")
+						: sanitized.naics_code;
+				}
 				if (sanitized.psc_code) params.psc_code = sanitized.psc_code;
-				if (sanitized.awarding_agency) params.awarding_agency = sanitized.awarding_agency;
+				if (sanitized.awarding_agency)
+					params.awarding_agency = sanitized.awarding_agency;
 				if (sanitized.cfda_number) params.cfda_number = sanitized.cfda_number;
 				if (sanitized.posted_date_after)
 					params.posted_date_after = sanitized.posted_date_after;
@@ -215,11 +226,12 @@ export function registerSearchGrantsTool(
 												"award_amount",
 												"-award_amount",
 											],
-											suggestion: "Use one of the valid ordering fields listed above",
+											suggestion:
+												"Use one of the valid ordering fields listed above",
 											recoverable: true,
 										},
 										null,
-										2
+										2,
 									),
 								},
 							],
@@ -239,7 +251,12 @@ export function registerSearchGrantsTool(
 				logger.info("Calling Tango API", { endpoint: "searchGrants", params });
 				const client = new TangoApiClient(env, cache);
 				const response = await client.searchGrants(params, apiKey);
-				logger.apiCall("/grants", "GET", response.status || 200, Date.now() - startTime);
+				logger.apiCall(
+					"/grants",
+					"GET",
+					response.status || 200,
+					Date.now() - startTime,
+				);
 
 				// Handle API error
 				if (!response.success || !response.data) {
@@ -254,10 +271,11 @@ export function registerSearchGrantsTool(
 										status: response.status,
 										suggestion: "Check your search parameters and try again",
 										recoverable: true,
-										transient: response.status === 429 || response.status === 503,
+										transient:
+											response.status === 429 || response.status === 503,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -266,27 +284,37 @@ export function registerSearchGrantsTool(
 
 				// Normalize results
 				const normalizedOpportunities = (response.data.results || []).map(
-					normalizeGrantOpportunity
+					normalizeGrantOpportunity,
 				);
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
 
 				// Build response envelope
-				logger.toolComplete("search_tango_grants", true, Date.now() - startTime, {
-					returned: normalizedOpportunities.length,
-				});
+				logger.toolComplete(
+					"search_tango_grants",
+					true,
+					Date.now() - startTime,
+					{
+						returned: normalizedOpportunities.length,
+					},
+				);
 
 				const result = {
 					data: normalizedOpportunities,
-					total: response.data.total || response.data.count || normalizedOpportunities.length,
+					total:
+						response.data.total ||
+						response.data.count ||
+						normalizedOpportunities.length,
 					returned: normalizedOpportunities.length,
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
 						has_more: !!nextCursor || !!response.data.next,
 						next_cursor: nextCursor,
-						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
+						ordering: sanitized.ordering
+							? getOrderingDescription(sanitized.ordering)
+							: undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
@@ -307,7 +335,7 @@ export function registerSearchGrantsTool(
 				logger.error(
 					"Unexpected error in search_tango_grants",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_grants" }
+					{ tool: "search_tango_grants" },
 				);
 				return {
 					content: [
@@ -325,12 +353,12 @@ export function registerSearchGrantsTool(
 									},
 								},
 								null,
-								2
+								2,
 							),
 						},
 					],
 				};
 			}
-		}
+		},
 	);
 }

@@ -6,14 +6,18 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Env } from "@/types/env";
-import { TangoApiClient } from "@/api/tango-client";
-import { sanitizeToolArgs } from "@/middleware/sanitization";
-import { normalizeOpportunity } from "@/utils/normalizer";
-import type { CacheManager } from "@/cache/kv-cache";
-import { getLogger } from "@/utils/logger";
-import { validateOpportunityOrdering, extractCursorFromUrl, getOrderingDescription } from "@/utils/sort-helpers";
 import { z } from "zod";
+import { TangoApiClient } from "@/api/tango-client";
+import type { CacheManager } from "@/cache/kv-cache";
+import { sanitizeToolArgs } from "@/middleware/sanitization";
+import type { Env } from "@/types/env";
+import { getLogger } from "@/utils/logger";
+import { normalizeOpportunity } from "@/utils/normalizer";
+import {
+	extractCursorFromUrl,
+	getOrderingDescription,
+	validateOpportunityOrdering,
+} from "@/utils/sort-helpers";
 
 /**
  * Register search opportunities tool with the MCP server
@@ -22,7 +26,7 @@ export function registerSearchOpportunitiesTool(
 	server: McpServer,
 	env: Env,
 	cache?: CacheManager,
-	userApiKey?: string
+	userApiKey?: string,
 ): void {
 	server.tool(
 		"search_tango_opportunities",
@@ -32,55 +36,55 @@ export function registerSearchOpportunitiesTool(
 				.string()
 				.optional()
 				.describe(
-					"Free-text search across opportunity titles and descriptions. Example: 'cybersecurity' or 'cloud services'"
+					"Free-text search across opportunity titles and descriptions. Example: 'cybersecurity' or 'cloud services'",
 				),
 			agency: z
 				.string()
 				.optional()
 				.describe(
-					"Agency name or code. Example: 'Department of Defense' or 'DOD'"
+					"Agency name or code. Example: 'Department of Defense' or 'DOD'",
 				),
 			naics_code: z
-				.string()
+				.union([z.string(), z.array(z.string())])
 				.optional()
 				.describe(
-					"NAICS industry classification code (2-6 digits). Example: '541512' for computer systems design"
+					"NAICS industry classification code(s). Single code: '541512', Multiple codes: ['541512', '541511', '541519'] or pipe-separated '541512|541511|541519'. Searches opportunities matching ANY of the provided codes (OR logic). Supports 2-6 digit codes.",
 				),
 			set_aside_type: z
 				.string()
 				.optional()
 				.describe(
-					"Set-aside category. Values: 'SBA', 'WOSB', 'SDVOSB', '8A', 'HUBZone'. Leave empty for all types."
+					"Contract set-aside category. Common values: 'SBA' (Small Business), 'WOSB' (Women-Owned), 'SDVOSB' (Service-Disabled Veteran), '8A' (8(a) Program), 'HZC' (HUBZone), 'VOSB' (Veteran-Owned), 'NONE' (Full & Open). Use | for multiple: 'SDVOSB|VOSB'. See documentation for complete list of ~20 codes.",
 				),
 			posted_date_after: z
 				.string()
 				.optional()
 				.describe(
-					"Earliest posted date to include (YYYY-MM-DD format). Example: '2024-01-01'"
+					"Earliest posted date to include (YYYY-MM-DD format). Example: '2024-01-01'",
 				),
 			posted_date_before: z
 				.string()
 				.optional()
 				.describe(
-					"Latest posted date to include (YYYY-MM-DD format). Example: '2024-12-31'"
+					"Latest posted date to include (YYYY-MM-DD format). Example: '2024-12-31'",
 				),
 			response_deadline_after: z
 				.string()
 				.optional()
 				.describe(
-					"Minimum response deadline (YYYY-MM-DD format). Only opportunities with deadlines on or after this date. Example: '2024-12-01'"
+					"Minimum response deadline (YYYY-MM-DD format). Only opportunities with deadlines on or after this date. Example: '2024-12-01'",
 				),
 			active: z
 				.boolean()
 				.optional()
 				.describe(
-					"Filter by active status. true = active opportunities only, false = inactive/closed, undefined = all"
+					"Filter by active status. true = active opportunities only, false = inactive/closed, undefined = all",
 				),
 			notice_type: z
 				.string()
 				.optional()
 				.describe(
-					"Notice type code. Example: 'f' for forecasted opportunities, 's' for solicitations"
+					"Notice type code. Example: 'f' for forecasted opportunities, 's' for solicitations",
 				),
 			limit: z
 				.number()
@@ -90,26 +94,26 @@ export function registerSearchOpportunitiesTool(
 				.default(10)
 				.optional()
 				.describe(
-					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses."
+					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses.",
 				),
 			export_format: z
 				.enum(["json", "csv"])
 				.default("json")
 				.optional()
 				.describe(
-					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API."
+					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets. Note: CSV format returns raw CSV string from API.",
 				),
 			ordering: z
 				.string()
 				.optional()
 				.describe(
-					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_deadline', '-response_deadline'. Example: '-response_deadline' for nearest deadline first."
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'posted_date', '-posted_date', 'response_deadline', '-response_deadline'. Example: '-response_deadline' for nearest deadline first.",
 				),
 			cursor: z
 				.string()
 				.optional()
 				.describe(
-					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets."
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets.",
 				),
 		},
 		async (args) => {
@@ -139,7 +143,7 @@ export function registerSearchOpportunitiesTool(
 										recoverable: true,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -150,7 +154,11 @@ export function registerSearchOpportunitiesTool(
 				const params: Record<string, unknown> = {};
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
-				if (sanitized.naics_code) params.naics = sanitized.naics_code;
+				if (sanitized.naics_code) {
+					params.naics = Array.isArray(sanitized.naics_code)
+						? sanitized.naics_code.join("|")
+						: sanitized.naics_code;
+				}
 				if (sanitized.set_aside_type)
 					params.set_aside = sanitized.set_aside_type;
 				if (sanitized.posted_date_after)
@@ -181,11 +189,12 @@ export function registerSearchOpportunitiesTool(
 												"response_deadline",
 												"-response_deadline",
 											],
-											suggestion: "Use one of the valid ordering fields listed above",
+											suggestion:
+												"Use one of the valid ordering fields listed above",
 											recoverable: true,
 										},
 										null,
-										2
+										2,
 									),
 								},
 							],
@@ -223,10 +232,11 @@ export function registerSearchOpportunitiesTool(
 										status: response.status,
 										suggestion: "Check your search parameters and try again",
 										recoverable: true,
-										transient: response.status === 429 || response.status === 503,
+										transient:
+											response.status === 429 || response.status === 503,
 									},
 									null,
-									2
+									2,
 								),
 							},
 						],
@@ -234,12 +244,17 @@ export function registerSearchOpportunitiesTool(
 				}
 
 				// Handle CSV format response
-				if (response.format === 'csv') {
+				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					logger.toolComplete("search_tango_opportunities", true, Date.now() - startTime, {
-						format: "csv",
-						csv_length: csvData.length,
-					});
+					logger.toolComplete(
+						"search_tango_opportunities",
+						true,
+						Date.now() - startTime,
+						{
+							format: "csv",
+							csv_length: csvData.length,
+						},
+					);
 
 					return {
 						content: [
@@ -253,32 +268,42 @@ export function registerSearchOpportunitiesTool(
 
 				// Normalize results (JSON format)
 				const normalizedOpportunities = (response.data.results || []).map(
-					normalizeOpportunity
+					normalizeOpportunity,
 				);
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
 
 				// Build response envelope
-				logger.toolComplete("search_tango_opportunities", true, Date.now() - startTime, {
-					returned: normalizedOpportunities.length,
-					total: response.data.total || response.data.count,
-				});
+				logger.toolComplete(
+					"search_tango_opportunities",
+					true,
+					Date.now() - startTime,
+					{
+						returned: normalizedOpportunities.length,
+						total: response.data.total || response.data.count,
+					},
+				);
 
 				const result = {
 					data: normalizedOpportunities,
-					total: response.data.total || response.data.count || normalizedOpportunities.length,
+					total:
+						response.data.total ||
+						response.data.count ||
+						normalizedOpportunities.length,
 					returned: normalizedOpportunities.length,
 					filters: sanitized,
 					pagination: {
 						limit: sanitized.limit || 10,
-						has_more: !!nextCursor || (
-							normalizedOpportunities.length >= (sanitized.limit || 10) &&
-							normalizedOpportunities.length <
-								(response.data.total || response.data.count || 0)
-						),
+						has_more:
+							!!nextCursor ||
+							(normalizedOpportunities.length >= (sanitized.limit || 10) &&
+								normalizedOpportunities.length <
+									(response.data.total || response.data.count || 0)),
 						next_cursor: nextCursor,
-						ordering: sanitized.ordering ? getOrderingDescription(sanitized.ordering) : undefined,
+						ordering: sanitized.ordering
+							? getOrderingDescription(sanitized.ordering)
+							: undefined,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
@@ -313,12 +338,12 @@ export function registerSearchOpportunitiesTool(
 									},
 								},
 								null,
-								2
+								2,
 							),
 						},
 					],
 				};
 			}
-		}
+		},
 	);
 }
