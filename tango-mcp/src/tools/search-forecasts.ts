@@ -15,6 +15,7 @@ import { getLogger } from "@/utils/logger";
 import { normalizeForecast } from "@/utils/normalizer";
 import { extractCursorFromUrl } from "@/utils/sort-helpers";
 import { handleCsvExport } from "@/utils/csv-export";
+import { toPipeDelimitedString } from "@/utils/array-helpers";
 
 /**
  * Register search forecasts tool with the MCP server
@@ -186,20 +187,12 @@ export function registerSearchForecastsTool(
 				if (sanitized.agency) params.agency = sanitized.agency;
 				if (sanitized.source_system) params.source_system = sanitized.source_system;
 
-				// Handle NAICS code - support arrays and pipe-separated strings
+				// Handle NAICS code (handles MCP JSON serialization)
 				if (sanitized.naics_code) {
-					let naicsValue: string;
-					if (Array.isArray(sanitized.naics_code)) {
-						naicsValue = sanitized.naics_code.join("|");
-					} else if (typeof sanitized.naics_code === "string") {
-						// Convert comma-separated to pipe-separated for API compatibility
-						naicsValue = sanitized.naics_code.includes(",")
-							? sanitized.naics_code.replace(/,\s*/g, "|")
-							: sanitized.naics_code;
-					} else {
-						naicsValue = String(sanitized.naics_code);
+					const naicsValue = toPipeDelimitedString(sanitized.naics_code);
+					if (naicsValue) {
+						params.naics_code = naicsValue;
 					}
-					params.naics_code = naicsValue;
 				}
 
 				if (sanitized.naics_starts_with) params.naics_starts_with = sanitized.naics_starts_with;

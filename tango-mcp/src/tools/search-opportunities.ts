@@ -20,6 +20,11 @@ import {
 } from "@/utils/sort-helpers";
 import { SET_ASIDE_CODES } from "@/data/set-aside-codes";
 import { handleCsvExport } from "@/utils/csv-export";
+import {
+	toPipeDelimitedString,
+	toUppercasePipeString,
+	parseMultiValueParam,
+} from "@/utils/array-helpers";
 
 /**
  * Register search opportunities tool with the MCP server
@@ -157,49 +162,34 @@ export function registerSearchOpportunitiesTool(
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
 				if (sanitized.naics_code) {
-					// Support multiple NAICS codes in array, pipe-separated, or comma-separated format
-					let naicsValue: string;
-					if (Array.isArray(sanitized.naics_code)) {
-						naicsValue = sanitized.naics_code.join("|");
-					} else if (typeof sanitized.naics_code === "string") {
-						// Convert comma-separated to pipe-separated for API compatibility
-						naicsValue = sanitized.naics_code.includes(",")
-							? sanitized.naics_code.replace(/,\s*/g, "|")
-							: sanitized.naics_code;
-					} else {
-						naicsValue = String(sanitized.naics_code);
+					// Support multiple NAICS codes (handles MCP JSON serialization)
+					const naicsValue = toPipeDelimitedString(sanitized.naics_code);
+					if (naicsValue) {
+						params.naics = naicsValue;
 					}
-					params.naics = naicsValue;
 				}
 				if (sanitized.set_aside_type) {
-					// Support multiple set-aside codes in array, pipe-separated, or comma-separated format
-					let setAsideValue: string;
-					if (Array.isArray(sanitized.set_aside_type)) {
-						setAsideValue = sanitized.set_aside_type.join("|");
-					} else if (typeof sanitized.set_aside_type === "string") {
-						// Convert comma-separated to pipe-separated for API compatibility
-						setAsideValue = sanitized.set_aside_type.includes(",")
-							? sanitized.set_aside_type.replace(/,\s*/g, "|")
-							: sanitized.set_aside_type;
-					} else {
-						setAsideValue = String(sanitized.set_aside_type);
+					// Support multiple set-aside codes (handles MCP JSON serialization)
+					const setAsideValue = toUppercasePipeString(sanitized.set_aside_type);
+
+					if (setAsideValue) {
+						// Validate codes against lookup table (informational only, don't block)
+						const codes = parseMultiValueParam(sanitized.set_aside_type);
+						if (codes) {
+							const unrecognized = codes
+								.map((c) => c.toUpperCase())
+								.filter((c) => !SET_ASIDE_CODES[c]);
+							if (unrecognized.length > 0) {
+								logger.info("Unrecognized set-aside codes in query", {
+									input: sanitized.set_aside_type,
+									unrecognized,
+									validCodes: `${Object.keys(SET_ASIDE_CODES).slice(0, 10).join(", ")}...`,
+								});
+							}
+						}
+
+						params.set_aside = setAsideValue;
 					}
-
-					// Normalize to uppercase (set-aside codes are uppercase in API)
-					setAsideValue = setAsideValue.toUpperCase();
-
-					// Validate codes against lookup table (informational only, don't block)
-					const codes = setAsideValue.split('|').map(c => c.trim());
-					const unrecognized = codes.filter(c => !SET_ASIDE_CODES[c]);
-					if (unrecognized.length > 0) {
-						logger.info("Unrecognized set-aside codes in query", {
-							input: sanitized.set_aside_type,
-							unrecognized,
-							validCodes: `${Object.keys(SET_ASIDE_CODES).slice(0, 10).join(', ')}...`
-						});
-					}
-
-					params.set_aside = setAsideValue;
 				}
 				if (sanitized.posted_date_after)
 					params.posted_date_after = sanitized.posted_date_after;

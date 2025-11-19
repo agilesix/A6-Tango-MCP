@@ -20,6 +20,11 @@ import {
 } from "@/utils/sort-helpers";
 import { SET_ASIDE_CODES } from "@/data/set-aside-codes";
 import { handleCsvExport } from "@/utils/csv-export";
+import {
+	toPipeDelimitedString,
+	toUppercasePipeString,
+	parseMultiValueParam,
+} from "@/utils/array-helpers";
 
 /**
  * Register search IDVs tool with the MCP server
@@ -210,86 +215,64 @@ export function registerSearchIDVsTool(
 				if (sanitized.funding_agency)
 					params.funding_agency = sanitized.funding_agency;
 
-				// IDV Type - array to pipe conversion
+				// IDV Type - array to pipe conversion with validation
 				if (sanitized.idv_type) {
-					let idvTypeValue: string;
-					if (Array.isArray(sanitized.idv_type)) {
-						idvTypeValue = sanitized.idv_type.join("|");
-					} else if (typeof sanitized.idv_type === "string") {
-						idvTypeValue = sanitized.idv_type.includes(",")
-							? sanitized.idv_type.replace(/,\s*/g, "|")
-							: sanitized.idv_type;
-					} else {
-						idvTypeValue = String(sanitized.idv_type);
+					const idvTypeValue = toUppercasePipeString(sanitized.idv_type);
+
+					if (idvTypeValue) {
+						// Validate codes (A-E)
+						const codes = parseMultiValueParam(sanitized.idv_type);
+						const validCodes = ["A", "B", "C", "D", "E"];
+						if (codes) {
+							const invalid = codes
+								.map((c) => c.toUpperCase())
+								.filter((c) => !validCodes.includes(c));
+							if (invalid.length > 0) {
+								logger.warn("Invalid IDV type codes", {
+									invalid,
+									valid: validCodes,
+								});
+							}
+						}
+
+						params.idv_type = idvTypeValue;
 					}
-
-					// Normalize to uppercase
-					idvTypeValue = idvTypeValue.toUpperCase();
-
-					// Validate codes (A-E)
-					const codes = idvTypeValue.split("|").map((c) => c.trim());
-					const validCodes = ["A", "B", "C", "D", "E"];
-					const invalid = codes.filter((c) => !validCodes.includes(c));
-					if (invalid.length > 0) {
-						logger.warn("Invalid IDV type codes", { invalid, valid: validCodes });
-					}
-
-					params.idv_type = idvTypeValue;
 				}
 
-				// NAICS - CRITICAL: array to pipe conversion
+				// NAICS - array to pipe conversion (handles MCP JSON serialization)
 				if (sanitized.naics_code) {
-					let naicsValue: string;
-					if (Array.isArray(sanitized.naics_code)) {
-						naicsValue = sanitized.naics_code.join("|");
-					} else if (typeof sanitized.naics_code === "string") {
-						naicsValue = sanitized.naics_code.includes(",")
-							? sanitized.naics_code.replace(/,\s*/g, "|")
-							: sanitized.naics_code;
-					} else {
-						naicsValue = String(sanitized.naics_code);
+					const naicsValue = toPipeDelimitedString(sanitized.naics_code);
+					if (naicsValue) {
+						params.naics = naicsValue;
 					}
-					params.naics = naicsValue;
 				}
 
-				// PSC - array to pipe conversion
+				// PSC - array to pipe conversion (handles MCP JSON serialization)
 				if (sanitized.psc_code) {
-					let pscValue: string;
-					if (Array.isArray(sanitized.psc_code)) {
-						pscValue = sanitized.psc_code.join("|");
-					} else if (typeof sanitized.psc_code === "string") {
-						pscValue = sanitized.psc_code.includes(",")
-							? sanitized.psc_code.replace(/,\s*/g, "|")
-							: sanitized.psc_code;
-					} else {
-						pscValue = String(sanitized.psc_code);
+					const pscValue = toPipeDelimitedString(sanitized.psc_code);
+					if (pscValue) {
+						params.psc = pscValue;
 					}
-					params.psc = pscValue;
 				}
 
-				// Set-aside - array to pipe conversion + validation
+				// Set-aside - array to pipe conversion with validation
 				if (sanitized.set_aside_type) {
-					let setAsideValue: string;
-					if (Array.isArray(sanitized.set_aside_type)) {
-						setAsideValue = sanitized.set_aside_type.join("|");
-					} else if (typeof sanitized.set_aside_type === "string") {
-						setAsideValue = sanitized.set_aside_type.includes(",")
-							? sanitized.set_aside_type.replace(/,\s*/g, "|")
-							: sanitized.set_aside_type;
-					} else {
-						setAsideValue = String(sanitized.set_aside_type);
+					const setAsideValue = toUppercasePipeString(sanitized.set_aside_type);
+
+					if (setAsideValue) {
+						// Validate against lookup table (non-blocking)
+						const codes = parseMultiValueParam(sanitized.set_aside_type);
+						if (codes) {
+							const unrecognized = codes
+								.map((c) => c.toUpperCase())
+								.filter((c) => !SET_ASIDE_CODES[c]);
+							if (unrecognized.length > 0) {
+								logger.info("Unrecognized set-aside codes", { unrecognized });
+							}
+						}
+
+						params.set_aside = setAsideValue;
 					}
-
-					setAsideValue = setAsideValue.toUpperCase();
-
-					// Validate against lookup table (non-blocking)
-					const codes = setAsideValue.split("|").map((c) => c.trim());
-					const unrecognized = codes.filter((c) => !SET_ASIDE_CODES[c]);
-					if (unrecognized.length > 0) {
-						logger.info("Unrecognized set-aside codes", { unrecognized });
-					}
-
-					params.set_aside = setAsideValue;
 				}
 
 				// Date range filters

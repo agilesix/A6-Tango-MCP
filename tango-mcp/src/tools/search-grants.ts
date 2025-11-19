@@ -18,6 +18,7 @@ import {
 	getOrderingDescription,
 	validateGrantOrdering,
 } from "@/utils/sort-helpers";
+import { toPipeDelimitedString } from "@/utils/array-helpers";
 
 /**
  * Register search grants tool with the MCP server
@@ -181,19 +182,11 @@ export function registerSearchGrantsTool(
 				if (sanitized.query) params.search = sanitized.query;
 				if (sanitized.agency) params.agency = sanitized.agency;
 				if (sanitized.naics_code) {
-					// Support multiple NAICS codes in array, pipe-separated, or comma-separated format
-					let naicsValue: string;
-					if (Array.isArray(sanitized.naics_code)) {
-						naicsValue = sanitized.naics_code.join("|");
-					} else if (typeof sanitized.naics_code === "string") {
-						// Convert comma-separated to pipe-separated for API compatibility
-						naicsValue = sanitized.naics_code.includes(",")
-							? sanitized.naics_code.replace(/,\s*/g, "|")
-							: sanitized.naics_code;
-					} else {
-						naicsValue = String(sanitized.naics_code);
+					// Support multiple NAICS codes (handles MCP JSON serialization)
+					const naicsValue = toPipeDelimitedString(sanitized.naics_code);
+					if (naicsValue) {
+						params.naics_code = naicsValue;
 					}
-					params.naics_code = naicsValue;
 				}
 				if (sanitized.psc_code) params.psc_code = sanitized.psc_code;
 				if (sanitized.awarding_agency)
