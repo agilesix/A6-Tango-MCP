@@ -20,6 +20,7 @@ import {
 	validateContractOrdering,
 } from "@/utils/sort-helpers";
 import { SET_ASIDE_CODES } from "@/data/set-aside-codes";
+import { handleCsvExport } from "@/utils/csv-export";
 
 /**
  * Register search contracts tool with the MCP server
@@ -466,24 +467,7 @@ export function registerSearchContractsTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					logger.toolComplete(
-						"search_tango_contracts",
-						true,
-						Date.now() - startTime,
-						{
-							format: "csv",
-							csv_length: csvData.length,
-						},
-					);
-
-					return {
-						content: [
-							{
-								type: "text",
-								text: csvData,
-							},
-						],
-					};
+					return handleCsvExport(csvData, "search_tango_contracts", logger, startTime);
 				}
 
 				// Normalize results (JSON format)

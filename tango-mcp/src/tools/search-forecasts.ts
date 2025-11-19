@@ -14,6 +14,7 @@ import type { Env } from "@/types/env";
 import { getLogger } from "@/utils/logger";
 import { normalizeForecast } from "@/utils/normalizer";
 import { extractCursorFromUrl } from "@/utils/sort-helpers";
+import { handleCsvExport } from "@/utils/csv-export";
 
 /**
  * Register search forecasts tool with the MCP server
@@ -252,24 +253,7 @@ export function registerSearchForecastsTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					logger.toolComplete(
-						"search_tango_forecasts",
-						true,
-						Date.now() - startTime,
-						{
-							format: "csv",
-							csv_length: csvData.length,
-						},
-					);
-
-					return {
-						content: [
-							{
-								type: "text",
-								text: csvData,
-							},
-						],
-					};
+					return handleCsvExport(csvData, "search_tango_forecasts", logger, startTime);
 				}
 
 				// Normalize results (JSON format)
