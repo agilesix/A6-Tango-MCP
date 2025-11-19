@@ -27,6 +27,7 @@ import type {
   TangoForecastDetailResponse,
   TangoAgencyListResponse,
   TangoIDVListResponse,
+  TangoSubawardListResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -123,6 +124,35 @@ export class TangoApiClient {
     apiKey: string,
   ): Promise<ApiResponse<TangoIDVListResponse>> {
     return this.get<TangoIDVListResponse>("/idvs/", params, apiKey);
+  }
+
+  /**
+   * Search subawards (subcontracts)
+   *
+   * Search subcontracts awarded by prime contractors to smaller businesses.
+   * Data from FSRS (Federal Subaward Reporting System) for awards over $30,000.
+   *
+   * Supported parameters:
+   * - award_key: Prime award ID
+   * - prime_uei: Prime contractor UEI
+   * - sub_uei: Subcontractor UEI
+   * - awarding_agency: Agency code or name
+   * - funding_agency: Funding agency code or name
+   * - recipient: Search by name or UEI
+   * - fiscal_year: Exact fiscal year
+   * - fiscal_year_gte/lte: Fiscal year range
+   * - page: Page number (offset-based pagination)
+   * - limit: Results per page (default 25)
+   *
+   * @param params Query parameters
+   * @param apiKey Tango API key
+   * @returns Promise resolving to subaward list response
+   */
+  async searchSubawards(
+    params: Record<string, unknown>,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoSubawardListResponse>> {
+    return this.get<TangoSubawardListResponse>("/subawards/", params, apiKey);
   }
 
   /**

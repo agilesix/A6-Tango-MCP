@@ -1005,6 +1005,84 @@ export interface TangoForecastDetailResponse extends TangoForecastResponse {
 }
 
 /**
+ * Subaward response from Tango API /subawards/ endpoint
+ *
+ * Represents subcontracts awarded by prime contractors to smaller businesses.
+ * Data sourced from FSRS (Federal Subaward Reporting System) for awards >$30k.
+ */
+export interface TangoSubawardResponse {
+	// Identifiers
+	key?: string;
+	subaward_number?: string;
+	award_key?: string;  // Prime award ID
+
+	// Prime Recipient (Prime Contractor)
+	prime_recipient?: {
+		uei?: string;
+		name?: string;
+	};
+
+	// Sub Recipient (Subcontractor)
+	sub_recipient?: {
+		uei?: string;
+		name?: string;
+		duns?: string;
+	};
+
+	// Awarding Office
+	awarding_office?: {
+		office_code?: string;
+		office_name?: string;
+		agency_code?: string;
+		agency_name?: string;
+		department_code?: string;
+		department_name?: string;
+	};
+
+	// Funding Office
+	funding_office?: {
+		office_code?: string;
+		office_name?: string;
+		agency_code?: string;
+		agency_name?: string;
+		department_code?: string;
+		department_name?: string;
+	};
+
+	// Subaward Details
+	subaward_amount?: number;
+	subaward_date?: string;
+	subaward_description?: string;
+	subaward_type?: string;
+
+	// Place of Performance
+	place_of_performance?: {
+		city_name?: string;
+		state_name?: string;
+		country_name?: string;
+		zip?: string;
+	};
+
+	// FSRS Metadata
+	fsrs_id?: string;
+	fsrs_year?: number;
+	fsrs_month?: number;
+	last_modified?: string;
+}
+
+/**
+ * Pagination wrapper for subaward list endpoint
+ * Uses offset-based pagination (page/limit) not cursor-based
+ */
+export interface TangoSubawardListResponse {
+	results: TangoSubawardResponse[];
+	total?: number;
+	count?: number;
+	next?: string | null;
+	previous?: string | null;
+}
+
+/**
  * Agency response from Tango API /agencies/ endpoint
  * Source: Government agency master data
  *

@@ -19,6 +19,7 @@ import type {
 	TangoVendorResponse,
 	TangoForecastResponse,
 	TangoIDVResponse,
+	TangoSubawardResponse,
 } from "@/types/tango-api";
 
 /**
@@ -560,6 +561,56 @@ export interface NormalizedIDV {
 		city: string | null;
 		state: string | null;
 		country: string | null;
+	};
+}
+
+/**
+ * Normalized subaward object with consistent field names
+ */
+export interface NormalizedSubaward {
+	subaward_id: string;
+	subaward_number: string | null;
+	prime_award_key: string | null;
+
+	prime_contractor: {
+		name: string;
+		uei: string | null;
+	};
+
+	subcontractor: {
+		name: string;
+		uei: string | null;
+		duns: string | null;
+	};
+
+	awarding_agency: {
+		name: string | null;
+		code: string | null;
+		office: string | null;
+	};
+
+	funding_office: {
+		name: string | null;
+		code: string | null;
+		office: string | null;
+	} | null;
+
+	subaward_amount: number;
+	subaward_date: string | null;
+	subaward_description: string | null;
+	subaward_type: string | null;
+
+	place_of_performance: {
+		city: string | null;
+		state: string | null;
+		country: string | null;
+	};
+
+	fsrs_metadata: {
+		id: string | null;
+		year: number | null;
+		month: number | null;
+		last_modified: string | null;
 	};
 }
 
@@ -1448,6 +1499,61 @@ export function normalizeIDV(idv: TangoIDVResponse): NormalizedIDV {
 			city: idv.place_of_performance?.city_name || null,
 			state: idv.place_of_performance?.state_name || null,
 			country: idv.place_of_performance?.country_name || null,
+		},
+	};
+}
+
+/**
+ * Normalize subaward response to consistent structure
+ *
+ * @param subaward Raw Tango API subaward response
+ * @returns Normalized subaward with consistent fields
+ */
+export function normalizeSubaward(subaward: TangoSubawardResponse): NormalizedSubaward {
+	return {
+		subaward_id: subaward.key || 'UNKNOWN',
+		subaward_number: subaward.subaward_number || null,
+		prime_award_key: subaward.award_key || null,
+
+		prime_contractor: {
+			name: subaward.prime_recipient?.name || 'Unknown Prime Contractor',
+			uei: subaward.prime_recipient?.uei || null,
+		},
+
+		subcontractor: {
+			name: subaward.sub_recipient?.name || 'Unknown Subcontractor',
+			uei: subaward.sub_recipient?.uei || null,
+			duns: subaward.sub_recipient?.duns || null,
+		},
+
+		awarding_agency: {
+			name: subaward.awarding_office?.agency_name || null,
+			code: subaward.awarding_office?.agency_code || null,
+			office: subaward.awarding_office?.office_name || null,
+		},
+
+		funding_office: subaward.funding_office ? {
+			name: subaward.funding_office.agency_name || null,
+			code: subaward.funding_office.agency_code || null,
+			office: subaward.funding_office.office_name || null,
+		} : null,
+
+		subaward_amount: subaward.subaward_amount || 0,
+		subaward_date: subaward.subaward_date || null,
+		subaward_description: subaward.subaward_description || null,
+		subaward_type: subaward.subaward_type || null,
+
+		place_of_performance: {
+			city: subaward.place_of_performance?.city_name || null,
+			state: subaward.place_of_performance?.state_name || null,
+			country: subaward.place_of_performance?.country_name || null,
+		},
+
+		fsrs_metadata: {
+			id: subaward.fsrs_id || null,
+			year: subaward.fsrs_year || null,
+			month: subaward.fsrs_month || null,
+			last_modified: subaward.last_modified || null,
 		},
 	};
 }
