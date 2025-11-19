@@ -493,6 +493,8 @@ export interface NormalizedForecast {
 	estimated_period: string | null;
 	set_aside: string | null;
 	contract_vehicle: string | null;
+	/** Data quality warnings (e.g., suspicious dates, missing data) */
+	data_quality_warnings?: string[];
 }
 
 /**
@@ -1256,20 +1258,27 @@ export function normalizeAmount(
  * Normalize forecast response
  *
  * Handles inconsistencies in forecast API responses with defensive field access
- * and sensible defaults.
+ * and sensible defaults. Includes data quality warnings for transparency.
  *
  * @param raw Raw forecast response from API
- * @returns Normalized forecast with consistent field names
+ * @returns Normalized forecast with consistent field names and quality warnings
  */
 export function normalizeForecast(raw: TangoForecastResponse): NormalizedForecast {
-	return {
+	const anticipated_award_date = raw.anticipated_award_date ?? null;
+
+	// Import at function level to avoid circular dependency
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const { getForecastDataQualityWarnings } = require("./data-quality");
+	const warnings = getForecastDataQualityWarnings(anticipated_award_date);
+
+	const normalized: NormalizedForecast = {
 		forecast_id: raw.id ?? 0,
 		source_system: raw.source_system ?? "UNKNOWN",
 		external_id: raw.external_id ?? "",
 		agency: raw.agency ?? "",
 		title: raw.title ?? "Untitled Forecast",
 		description: raw.description ?? null,
-		anticipated_award_date: raw.anticipated_award_date ?? null,
+		anticipated_award_date,
 		fiscal_year: raw.fiscal_year ?? null,
 		naics_code: raw.naics_code ?? null,
 		is_active: raw.is_active ?? false,
@@ -1280,4 +1289,11 @@ export function normalizeForecast(raw: TangoForecastResponse): NormalizedForecas
 		set_aside: raw.set_aside ?? null,
 		contract_vehicle: raw.contract_vehicle ?? null,
 	};
+
+	// Only add warnings array if there are warnings
+	if (warnings.length > 0) {
+		normalized.data_quality_warnings = warnings;
+	}
+
+	return normalized;
 }
