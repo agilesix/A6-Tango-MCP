@@ -116,8 +116,8 @@ export function registerLookupAgencyTool(
 								code: agency.department.code || null,
 						  }
 						: null,
-					has_forecasts: agency.code
-						? forecastDiscovery.agencies.get(agency.code) ?? false
+					has_forecasts: agency.abbreviation
+						? forecastDiscovery.agencies.get(agency.abbreviation) ?? false
 						: false,
 				}));
 
