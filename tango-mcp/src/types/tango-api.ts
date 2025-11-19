@@ -808,6 +808,94 @@ export interface TangoOpportunityDetailResponse
 }
 
 /**
+ * Forecast response from Tango API /forecasts/ endpoint
+ * Source: Multiple government agency forecast systems (HHS, DHS, GSA, etc.)
+ *
+ * Forecasts represent anticipated procurement opportunities with expected award dates.
+ * Unlike opportunities, forecasts focus on future planning rather than active solicitations.
+ */
+export interface TangoForecastResponse {
+	/** Unique Tango forecast identifier */
+	id?: number;
+
+	/** Source system (e.g., 'HHS', 'DHS', 'GSA') */
+	source_system?: string;
+
+	/** Original ID from source system (UUID for HHS, numeric for DHS) */
+	external_id?: string;
+
+	/** Agency acronym (HHS, DHS, etc.) */
+	agency?: string;
+
+	/** Forecast opportunity title */
+	title?: string;
+
+	/** Detailed description of the requirement */
+	description?: string;
+
+	/** Expected date of award (YYYY-MM-DD format) */
+	anticipated_award_date?: string;
+
+	/** Federal fiscal year (calculated from award date) */
+	fiscal_year?: number;
+
+	/** NAICS industry classification code (6 digits) */
+	naics_code?: string;
+
+	/** Whether this opportunity is currently active */
+	is_active?: boolean;
+
+	/** Status from source system (e.g., 'PUBLISHED', 'DRAFT') */
+	status?: string;
+
+	/** Computed/formatted contact information (read-only) */
+	primary_contact?: string;
+
+	/** Computed/formatted performance location (read-only) */
+	place_of_performance?: string;
+
+	/** Computed/formatted contract period (read-only) */
+	estimated_period?: string;
+
+	/** Computed/formatted set-aside type (read-only) */
+	set_aside?: string;
+
+	/** Computed/formatted contract vehicle type (read-only) */
+	contract_vehicle?: string;
+}
+
+/**
+ * Pagination response wrapper for forecast searches
+ */
+export interface TangoForecastListResponse {
+	/** Array of forecast results */
+	results: TangoForecastResponse[];
+	/** Total number of results available */
+	total?: number;
+	/** Count of results returned */
+	count?: number;
+	/** Next page URL (contains cursor parameter) */
+	next?: string | null;
+	/** Previous page URL */
+	previous?: string | null;
+}
+
+/**
+ * Forecast detail response from Tango API /forecasts/{id}/ endpoint
+ * Returns comprehensive forecast details including raw source data
+ */
+export interface TangoForecastDetailResponse extends TangoForecastResponse {
+	/** Complete original data from source system */
+	raw_data?: Record<string, any>;
+
+	/** Formatted display representation of the forecast */
+	display_data?: string;
+
+	/** All standard forecast fields are included plus additional detail fields */
+	[key: string]: any;
+}
+
+/**
  * Generic API response wrapper
  */
 export interface TangoApiResponse<T> {

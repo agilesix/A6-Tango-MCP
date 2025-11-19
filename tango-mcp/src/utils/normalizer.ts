@@ -17,6 +17,7 @@ import type {
 	TangoGrantResponse,
 	TangoOpportunityResponse,
 	TangoVendorResponse,
+	TangoForecastResponse,
 } from "@/types/tango-api";
 
 /**
@@ -470,6 +471,28 @@ export interface NormalizedOpportunity {
 
 	classification_code: string | null;
 	archive_date: string | null;
+}
+
+/**
+ * Normalized forecast object with consistent field names
+ */
+export interface NormalizedForecast {
+	forecast_id: number;
+	source_system: string;
+	external_id: string;
+	agency: string;
+	title: string;
+	description: string | null;
+	anticipated_award_date: string | null;
+	fiscal_year: number | null;
+	naics_code: string | null;
+	is_active: boolean;
+	status: string | null;
+	primary_contact: string | null;
+	place_of_performance: string | null;
+	estimated_period: string | null;
+	set_aside: string | null;
+	contract_vehicle: string | null;
 }
 
 /**
@@ -1227,4 +1250,34 @@ export function normalizeAmount(
 	const parsed = Number.parseFloat(cleaned);
 
 	return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Normalize forecast response
+ *
+ * Handles inconsistencies in forecast API responses with defensive field access
+ * and sensible defaults.
+ *
+ * @param raw Raw forecast response from API
+ * @returns Normalized forecast with consistent field names
+ */
+export function normalizeForecast(raw: TangoForecastResponse): NormalizedForecast {
+	return {
+		forecast_id: raw.id ?? 0,
+		source_system: raw.source_system ?? "UNKNOWN",
+		external_id: raw.external_id ?? "",
+		agency: raw.agency ?? "",
+		title: raw.title ?? "Untitled Forecast",
+		description: raw.description ?? null,
+		anticipated_award_date: raw.anticipated_award_date ?? null,
+		fiscal_year: raw.fiscal_year ?? null,
+		naics_code: raw.naics_code ?? null,
+		is_active: raw.is_active ?? false,
+		status: raw.status ?? null,
+		primary_contact: raw.primary_contact ?? null,
+		place_of_performance: raw.place_of_performance ?? null,
+		estimated_period: raw.estimated_period ?? null,
+		set_aside: raw.set_aside ?? null,
+		contract_vehicle: raw.contract_vehicle ?? null,
+	};
 }

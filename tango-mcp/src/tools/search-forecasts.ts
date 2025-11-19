@@ -1,0 +1,357 @@
+/**
+ * Search Forecasts Tool
+ *
+ * Searches federal procurement forecast opportunities from multiple government agencies.
+ * Provides access to anticipated future contracting opportunities with expected award dates.
+ */
+
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { TangoApiClient } from "@/api/tango-client";
+import type { CacheManager } from "@/cache/kv-cache";
+import { sanitizeToolArgs } from "@/middleware/sanitization";
+import type { Env } from "@/types/env";
+import { getLogger } from "@/utils/logger";
+import { normalizeForecast } from "@/utils/normalizer";
+import { extractCursorFromUrl } from "@/utils/sort-helpers";
+
+/**
+ * Register search forecasts tool with the MCP server
+ */
+export function registerSearchForecastsTool(
+	server: McpServer,
+	env: Env,
+	cache?: CacheManager,
+	userApiKey?: string,
+): void {
+	server.tool(
+		"search_tango_forecasts",
+		"Search federal procurement forecast opportunities from multiple government agencies (HHS, DHS, GSA, etc.). Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
+		{
+			query: z
+				.string()
+				.optional()
+				.describe(
+					"Free-text search across forecast titles and descriptions. Example: 'cloud infrastructure' or 'professional services'",
+				),
+			agency: z
+				.string()
+				.optional()
+				.describe(
+					"Agency acronym. Supports OR logic with pipe (HHS|DHS) or AND logic with comma (HHS,DHS). Example: 'HHS' or 'DHS|GSA'",
+				),
+			source_system: z
+				.string()
+				.optional()
+				.describe(
+					"Source agency system. Supports OR logic with pipe (HHS|DHS|GSA). Example: 'HHS' or 'DHS|GSA'",
+				),
+			naics_code: z
+				.union([z.string(), z.array(z.string())])
+				.optional()
+				.describe(
+					"NAICS industry classification code(s). Single code: '541512', Multiple codes: ['541512', '541511'] or pipe-separated '541512|541511'. Searches forecasts matching ANY of the provided codes (OR logic). Must be exact 6-digit codes.",
+				),
+			naics_starts_with: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by NAICS code prefix for broader industry search. Example: '54' for Professional Services, '541' for Professional/Scientific/Technical Services. Supports OR logic with pipe (54|62) or AND logic with comma (54,62).",
+				),
+			fiscal_year: z
+				.number()
+				.int()
+				.optional()
+				.describe(
+					"Exact fiscal year filter. Example: 2025",
+				),
+			fiscal_year_gte: z
+				.number()
+				.int()
+				.optional()
+				.describe(
+					"Fiscal year greater than or equal to. Example: 2024 for FY2024 and later",
+				),
+			fiscal_year_lte: z
+				.number()
+				.int()
+				.optional()
+				.describe(
+					"Fiscal year less than or equal to. Example: 2026 for FY2026 and earlier",
+				),
+			status: z
+				.string()
+				.optional()
+				.describe(
+					"Forecast status. Supports OR logic with pipe. Common values: 'PUBLISHED', 'DRAFT'. Example: 'PUBLISHED|DRAFT'",
+				),
+			award_date_after: z
+				.string()
+				.optional()
+				.describe(
+					"Anticipated award date on or after (YYYY-MM-DD format). Example: '2025-01-01'",
+				),
+			award_date_before: z
+				.string()
+				.optional()
+				.describe(
+					"Anticipated award date on or before (YYYY-MM-DD format). Example: '2025-12-31'",
+				),
+			modified_after: z
+				.string()
+				.optional()
+				.describe(
+					"Last modified in Tango on or after (YYYY-MM-DD format). Useful for finding recently updated forecasts. Example: '2025-01-01'",
+				),
+			modified_before: z
+				.string()
+				.optional()
+				.describe(
+					"Last modified in Tango on or before (YYYY-MM-DD format). Example: '2025-12-31'",
+				),
+			active: z
+				.boolean()
+				.optional()
+				.describe(
+					"Filter by active status. true = active forecasts only, false = inactive, undefined = all",
+				),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.default(10)
+				.optional()
+				.describe(
+					"Maximum results to return. Default: 10, Maximum: 100. Use smaller values for faster responses.",
+				),
+			export_format: z
+				.enum(["json", "csv"])
+				.default("json")
+				.optional()
+				.describe(
+					"Export format for search results. 'json' returns structured JSON data (default). 'csv' returns comma-separated values suitable for Excel/spreadsheets.",
+				),
+			ordering: z
+				.string()
+				.optional()
+				.describe(
+					"Field to sort results by. Prefix with '-' for descending order. Valid fields: 'anticipated_award_date', '-anticipated_award_date', 'fiscal_year', '-fiscal_year'. Example: '-anticipated_award_date' for soonest awards first.",
+				),
+			cursor: z
+				.string()
+				.optional()
+				.describe(
+					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field.",
+				),
+		},
+		async (args) => {
+			const startTime = Date.now();
+			const logger = getLogger();
+
+			try {
+				logger.toolInvocation("search_tango_forecasts", args, startTime);
+
+				// Sanitize input
+				const sanitized = sanitizeToolArgs(args);
+
+				// Get API key from user or environment
+				const apiKey = userApiKey || env.TANGO_API_KEY;
+				if (!apiKey) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(
+									{
+										error: "Tango API key required",
+										error_code: "MISSING_API_KEY",
+										suggestion:
+											"Configure x-tango-api-key header in Claude Desktop config or set TANGO_API_KEY environment variable",
+										documentation: "https://tango.makegov.com for API key",
+										recoverable: true,
+									},
+									null,
+									2,
+								),
+							},
+						],
+					};
+				}
+
+				// Build API parameters
+				const params: Record<string, unknown> = {};
+				if (sanitized.query) params.search = sanitized.query;
+				if (sanitized.agency) params.agency = sanitized.agency;
+				if (sanitized.source_system) params.source_system = sanitized.source_system;
+
+				// Handle NAICS code - support arrays and pipe-separated strings
+				if (sanitized.naics_code) {
+					let naicsValue: string;
+					if (Array.isArray(sanitized.naics_code)) {
+						naicsValue = sanitized.naics_code.join("|");
+					} else if (typeof sanitized.naics_code === "string") {
+						// Convert comma-separated to pipe-separated for API compatibility
+						naicsValue = sanitized.naics_code.includes(",")
+							? sanitized.naics_code.replace(/,\s*/g, "|")
+							: sanitized.naics_code;
+					} else {
+						naicsValue = String(sanitized.naics_code);
+					}
+					params.naics_code = naicsValue;
+				}
+
+				if (sanitized.naics_starts_with) params.naics_starts_with = sanitized.naics_starts_with;
+				if (sanitized.fiscal_year !== undefined) params.fiscal_year = sanitized.fiscal_year;
+				if (sanitized.fiscal_year_gte !== undefined) params.fiscal_year_gte = sanitized.fiscal_year_gte;
+				if (sanitized.fiscal_year_lte !== undefined) params.fiscal_year_lte = sanitized.fiscal_year_lte;
+				if (sanitized.status) params.status = sanitized.status;
+				if (sanitized.award_date_after) params.award_date_after = sanitized.award_date_after;
+				if (sanitized.award_date_before) params.award_date_before = sanitized.award_date_before;
+				if (sanitized.modified_after) params.modified_after = sanitized.modified_after;
+				if (sanitized.modified_before) params.modified_before = sanitized.modified_before;
+				if (sanitized.active !== undefined) params.active = sanitized.active;
+				if (sanitized.ordering) params.ordering = sanitized.ordering;
+				if (sanitized.cursor) params.cursor = sanitized.cursor;
+
+				params.limit = sanitized.limit || 10;
+
+				// Add format parameter for CSV export if requested
+				if (sanitized.export_format) {
+					params.format = sanitized.export_format;
+				}
+
+				// Call Tango API with caching
+				const client = new TangoApiClient(env, cache);
+				const response = await client.searchForecasts(params, apiKey);
+
+				// Handle API error
+				if (!response.success || !response.data) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(
+									{
+										error: response.error || "API request failed",
+										error_code: "API_ERROR",
+										status: response.status,
+										suggestion: "Check your search parameters and try again",
+										recoverable: true,
+										transient:
+											response.status === 429 || response.status === 503,
+									},
+									null,
+									2,
+								),
+							},
+						],
+					};
+				}
+
+				// Handle CSV format response
+				if (response.format === "csv") {
+					const csvData = response.data as unknown as string;
+					logger.toolComplete(
+						"search_tango_forecasts",
+						true,
+						Date.now() - startTime,
+						{
+							format: "csv",
+							csv_length: csvData.length,
+						},
+					);
+
+					return {
+						content: [
+							{
+								type: "text",
+								text: csvData,
+							},
+						],
+					};
+				}
+
+				// Normalize results (JSON format)
+				const normalizedForecasts = (response.data.results || []).map(
+					normalizeForecast,
+				);
+
+				// Extract cursor for next page
+				const nextCursor = extractCursorFromUrl(response.data.next);
+
+				// Build response envelope
+				logger.toolComplete(
+					"search_tango_forecasts",
+					true,
+					Date.now() - startTime,
+					{
+						returned: normalizedForecasts.length,
+						total: response.data.total || response.data.count,
+					},
+				);
+
+				const result = {
+					data: normalizedForecasts,
+					total:
+						response.data.total ||
+						response.data.count ||
+						normalizedForecasts.length,
+					returned: normalizedForecasts.length,
+					filters: sanitized,
+					pagination: {
+						limit: sanitized.limit || 10,
+						has_more:
+							!!nextCursor ||
+							(normalizedForecasts.length >= (sanitized.limit || 10) &&
+								normalizedForecasts.length <
+									(response.data.total || response.data.count || 0)),
+						next_cursor: nextCursor,
+					},
+					execution: {
+						duration_ms: Date.now() - startTime,
+						cached: response.cache?.hit || false,
+						api_calls: 1,
+					},
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(result, null, 2),
+						},
+					],
+				};
+			} catch (error) {
+				// Handle unexpected errors
+				logger.error(
+					"Unexpected error in search_tango_forecasts",
+					error instanceof Error ? error : new Error(String(error)),
+					{ tool: "search_tango_forecasts" }
+				);
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(
+								{
+									error:
+										error instanceof Error ? error.message : "Unknown error",
+									error_code: "INTERNAL_ERROR",
+									suggestion: "Contact support if this error persists",
+									recoverable: false,
+									execution: {
+										duration_ms: Date.now() - startTime,
+									},
+								},
+								null,
+								2,
+							),
+						},
+					],
+				};
+			}
+		},
+	);
+}

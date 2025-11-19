@@ -16,6 +16,8 @@ import { registerGetContractDetailTool } from "./tools/get-contract-detail.js";
 import { registerGetGrantDetailTool } from "./tools/get-grant-detail.js";
 import { registerGetOpportunityDetailTool } from "./tools/get-opportunity-detail.js";
 import { registerGetAgencyAnalyticsTool } from "./tools/get-agency-analytics.js";
+import { registerSearchForecastsTool } from "./tools/search-forecasts.js";
+import { registerGetForecastDetailTool } from "./tools/get-forecast-detail.js";
 import { createCacheManager } from "./cache/kv-cache.js";
 // <mcp-auth:imports>
 // Auth imports will be added here by add-auth command
@@ -80,6 +82,8 @@ export class MCPServerAgent extends McpAgent<Env, Record<string, never>, MCPProp
 		registerGetGrantDetailTool(this.server, env, cache, userApiKey);
 		registerGetOpportunityDetailTool(this.server, env, cache, userApiKey);
 		registerGetAgencyAnalyticsTool(this.server, env, cache, userApiKey);
+		registerSearchForecastsTool(this.server, env, cache, userApiKey);
+		registerGetForecastDetailTool(this.server, env, cache, userApiKey);
 	}
 }
 

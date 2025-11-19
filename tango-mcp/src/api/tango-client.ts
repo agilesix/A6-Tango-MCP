@@ -23,6 +23,8 @@ import type {
   TangoVendorResponse,
   TangoOpportunityListResponse,
   TangoOpportunityDetailResponse,
+  TangoForecastListResponse,
+  TangoForecastDetailResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -235,6 +237,56 @@ export class TangoApiClient {
     apiKey: string,
   ): Promise<ApiResponse<TangoOpportunityDetailResponse>> {
     return this.get<TangoOpportunityDetailResponse>(`/opportunities/${opportunityId}/`, {}, apiKey);
+  }
+
+  /**
+   * Search forecast opportunities from multiple government agencies
+   *
+   * Supported parameters:
+   * - search: Free-text search across titles and descriptions
+   * - agency: Agency acronym filter (supports HHS|DHS OR logic and HHS,DHS AND logic)
+   * - source_system: Source system filter (HHS|DHS|GSA with OR/AND patterns)
+   * - naics_code: Exact NAICS code filter (supports 541511|541512 OR logic)
+   * - naics_starts_with: NAICS prefix filter (e.g., "54" for Professional Services)
+   * - fiscal_year: Exact fiscal year filter
+   * - fiscal_year_gte: Fiscal year greater than or equal to
+   * - fiscal_year_lte: Fiscal year less than or equal to
+   * - status: Status filter (PUBLISHED|DRAFT with OR logic)
+   * - award_date_after: Award date on or after (YYYY-MM-DD)
+   * - award_date_before: Award date on or before (YYYY-MM-DD)
+   * - modified_after: Modified in Tango on or after (YYYY-MM-DD)
+   * - modified_before: Modified in Tango on or before (YYYY-MM-DD)
+   * - ordering: Sort field (e.g., "anticipated_award_date", "-fiscal_year")
+   * - page: Page number for pagination
+   * - limit: Maximum results (default: 25, max: 100)
+   * - format: Response format (json or csv)
+   *
+   * @param params Query parameters for forecast search
+   * @param apiKey Tango API key
+   * @returns Forecast search results
+   */
+  async searchForecasts(
+    params: Record<string, unknown>,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoForecastListResponse>> {
+    return this.get<TangoForecastListResponse>("/forecasts/", params, apiKey);
+  }
+
+  /**
+   * Get detailed forecast information by ID
+   *
+   * Returns comprehensive forecast details including raw source system data
+   * and formatted display representation.
+   *
+   * @param forecastId Forecast ID (integer)
+   * @param apiKey Tango API key
+   * @returns Forecast detail data
+   */
+  async getForecastDetail(
+    forecastId: string | number,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoForecastDetailResponse>> {
+    return this.get<TangoForecastDetailResponse>(`/forecasts/${forecastId}/`, {}, apiKey);
   }
 
   /**

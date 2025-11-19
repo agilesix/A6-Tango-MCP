@@ -1,0 +1,16 @@
+name: "API Test - Get Forecast Detail"
+description: "Verify get_tango_forecast_detail returns detailed forecast data (1 API call)"
+tool: "get_tango_forecast_detail"
+arguments:
+  forecast_id: 1
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 10000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "object"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"
