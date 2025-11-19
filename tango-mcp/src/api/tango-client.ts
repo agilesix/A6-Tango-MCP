@@ -25,6 +25,7 @@ import type {
   TangoOpportunityDetailResponse,
   TangoForecastListResponse,
   TangoForecastDetailResponse,
+  TangoAgencyListResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -313,6 +314,31 @@ export class TangoApiClient {
 
     const endpoint = `/agencies/${agencyCode}/contracts/${role}/`;
     return this.get<TangoContractListResponse>(endpoint, params, apiKey);
+  }
+
+  /**
+   * Search federal agencies by name, abbreviation, or code
+   *
+   * Public endpoint that helps users find correct agency codes for searches.
+   * Useful for resolving ambiguity around agency names vs codes vs abbreviations.
+   *
+   * Note: This endpoint is public and does not require authentication,
+   * but we still accept an API key parameter for consistency with other methods.
+   *
+   * Supported parameters:
+   * - search: Search term to match against name, abbreviation, code (supports OR logic with pipe)
+   * - limit: Maximum results (default: 25, max: 100)
+   * - page: Page number for pagination
+   *
+   * @param params Query parameters for agency search
+   * @param apiKey Tango API key (optional for this public endpoint)
+   * @returns Agency search results
+   */
+  async searchAgencies(
+    params: Record<string, unknown>,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoAgencyListResponse>> {
+    return this.get<TangoAgencyListResponse>("/agencies/", params, apiKey);
   }
 
   /**

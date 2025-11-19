@@ -1,0 +1,76 @@
+name: "API Test - Lookup Tango Agency"
+description: "Verify lookup_tango_agency returns matching agency data (1 API call)"
+tool: "lookup_tango_agency"
+arguments:
+  query: "HHS"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.data[0].name"
+    expected_value_contains: "Health and Human Services"
+  - type: "json_path"
+    path: "$.returned"
+    expected_type: "number"
+
+---
+name: "API Test - Lookup Tango Agency (Veterans Affairs)"
+description: "Verify lookup_tango_agency finds VA when searching for 'Veterans'"
+tool: "lookup_tango_agency"
+arguments:
+  query: "Veterans"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.data[0].abbreviation"
+    expected_value_contains: "VA"
+  - type: "json_path"
+    path: "$.returned"
+    expected_type: "number"
+
+---
+name: "API Test - Lookup Tango Agency (Partial Match)"
+description: "Verify lookup_tango_agency supports partial text matching"
+tool: "lookup_tango_agency"
+arguments:
+  query: "Defense"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.data"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"
+
+---
+name: "API Test - Lookup Tango Agency (Execution Metadata)"
+description: "Verify lookup_tango_agency response includes execution metadata"
+tool: "lookup_tango_agency"
+arguments:
+  query: "GSA"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 5000
+  - type: "json_path"
+    path: "$.execution"
+    expected_type: "object"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"

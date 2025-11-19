@@ -896,6 +896,48 @@ export interface TangoForecastDetailResponse extends TangoForecastResponse {
 }
 
 /**
+ * Agency response from Tango API /agencies/ endpoint
+ * Source: Government agency master data
+ *
+ * This endpoint provides agency lookup and detail information.
+ * Useful for finding correct agency codes for searches.
+ */
+export interface TangoAgencyResponse {
+	/** Agency code (e.g., '97', '7000', 'DOD') */
+	code?: string;
+
+	/** Full agency name */
+	name?: string;
+
+	/** Agency abbreviation/acronym (e.g., 'DOD', 'VA', 'HHS') */
+	abbreviation?: string;
+
+	/** Parent department information */
+	department?: {
+		/** Department name */
+		name?: string;
+		/** Department code */
+		code?: string;
+	};
+}
+
+/**
+ * Pagination response wrapper for agency searches
+ */
+export interface TangoAgencyListResponse {
+	/** Array of agency results */
+	results: TangoAgencyResponse[];
+	/** Total number of results available */
+	total?: number;
+	/** Count of results returned */
+	count?: number;
+	/** Next page URL */
+	next?: string | null;
+	/** Previous page URL */
+	previous?: string | null;
+}
+
+/**
  * Generic API response wrapper
  */
 export interface TangoApiResponse<T> {
