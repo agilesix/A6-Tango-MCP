@@ -256,5 +256,60 @@ describe("search_tango_subawards tool", () => {
 			expect(data.pagination).toHaveProperty("has_more", true);
 			expect(data.pagination).toHaveProperty("has_previous", true);
 		});
+
+		it("should set has_previous correctly based on current page", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+
+			// Test page 1 - should be false
+			const mockSearchSubawardsPage1 = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					results: [],
+					total: 100,
+					next: "https://api.test.com/subawards/?page=2&limit=25",
+					previous: null,
+				},
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawardsPage1,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			const resultPage1 = await handler({ page: 1, limit: 25 });
+			const dataPage1 = JSON.parse(resultPage1.content[0].text);
+
+			expect(dataPage1.pagination.current_page).toBe(1);
+			expect(dataPage1.pagination.has_previous).toBe(false);
+
+			// Test page 2 - should be true
+			vi.clearAllMocks();
+			const mockSearchSubawardsPage2 = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					results: [],
+					total: 100,
+					next: "https://api.test.com/subawards/?page=3&limit=25",
+					previous: "https://api.test.com/subawards/?page=1&limit=25",
+				},
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawardsPage2,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler2 = (mockServer.tool as any).mock.calls[0][3];
+
+			const resultPage2 = await handler2({ page: 2, limit: 25 });
+			const dataPage2 = JSON.parse(resultPage2.content[0].text);
+
+			expect(dataPage2.pagination.current_page).toBe(2);
+			expect(dataPage2.pagination.has_previous).toBe(true);
+		});
 	});
 });

@@ -40,7 +40,7 @@ export function registerSearchSubawardsTool(
 ): void {
 	server.tool(
 		"search_tango_subawards",
-		"Search federal subawards (subcontracts awarded by prime contractors to smaller businesses). Data from FSRS (Federal Subaward Reporting System) for awards over $30,000. Essential for small businesses looking for teaming partners, analyzing supply chain relationships, and identifying subcontracting opportunities. Supports filtering by prime contractor (UEI), subcontractor (UEI), agencies, fiscal years, and prime award. Use this to find who is getting paid by prime contractors, identify active subcontractors in specific industries, and research teaming relationships. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Returns offset-based pagination (page numbers).",
+		"Search federal subawards (subcontracts awarded by prime contractors to smaller businesses). Data from FSRS (Federal Subaward Reporting System) for awards over $30,000. Essential for small businesses looking for teaming partners, analyzing supply chain relationships, and identifying subcontracting opportunities. Supports filtering by prime contractor (UEI), subcontractor (UEI), agencies, fiscal years, and prime award. Use this to find who is getting paid by prime contractors, identify active subcontractors in specific industries, and research teaming relationships. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Returns offset-based pagination (page numbers). Known API limitations: (1) recipient parameter may trigger 500 errors - use prime_uei or sub_uei instead, (2) many results have incomplete data (missing contractor names/amounts) - cross-reference with vendor profiles for full details, (3) agency filtering works best with agency codes rather than full names. These are upstream API data quality issues.",
 		{
 			award_key: z.string().optional().describe(
 				"Prime award key/ID to find all subawards under that contract. Example: 'CONT_AWD_70SBUR24C00000004_7000_-NONE-_-NONE-'"
@@ -193,7 +193,7 @@ export function registerSearchSubawardsTool(
 						next_page: nextPage,
 						previous_page: prevPage,
 						has_more: !!nextPage,
-						has_previous: !!prevPage,
+						has_previous: (sanitized.page || 1) > 1,
 					},
 					execution: {
 						duration_ms: Date.now() - startTime,
