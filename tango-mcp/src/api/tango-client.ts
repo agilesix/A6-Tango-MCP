@@ -371,10 +371,11 @@ export class TangoApiClient {
 
       try {
         // Make fetch request
+        const acceptHeader = sanitizedParams.format === 'csv' ? 'text/csv' : 'application/json';
         const response = await fetch(url, {
           method: "GET",
           headers: {
-            Accept: "application/json",
+            Accept: acceptHeader,
             "X-API-Key": apiKey,
             "User-Agent": "Tango-MCP/1.0.0",
           },

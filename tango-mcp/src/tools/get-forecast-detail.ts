@@ -24,7 +24,7 @@ export function registerGetForecastDetailTool(
 ): void {
 	server.tool(
 		"get_tango_forecast_detail",
-		"Get detailed information for a specific federal procurement forecast by its unique forecast ID. Returns comprehensive forecast details including full description, title, agency and source system information, anticipated award date, fiscal year, NAICS industry classification code, status, set-aside information, primary contact details, place of performance, estimated contract period, contract vehicle type, complete raw data from source system (HHS/DHS/GSA), and formatted display representation. Use this when you have a forecast ID from search results and need complete forecast details. Forecast IDs are integer values.",
+		"Get detailed information for a specific federal procurement forecast by its unique forecast ID. Returns comprehensive forecast details including full description, title, agency and source system information, anticipated award date, fiscal year, NAICS industry classification code, status, set-aside information, primary contact details, place of performance, estimated contract period, contract vehicle type, complete raw data from source system, and formatted display representation. Use this when you have a forecast ID from search results and need complete forecast details. Note: Only agencies that publish forecasts to Tango will have forecast data available. Forecast IDs are integer values.",
 		{
 			forecast_id: z
 				.union([z.number().int(), z.string()])

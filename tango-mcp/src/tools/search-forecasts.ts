@@ -26,7 +26,7 @@ export function registerSearchForecastsTool(
 ): void {
 	server.tool(
 		"search_tango_forecasts",
-		"Search federal procurement forecast opportunities from multiple government agencies (HHS, DHS, GSA, etc.). Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
+		"Search federal procurement forecast opportunities from government agencies that publish forecasts. Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. IMPORTANT: Not all agencies publish forecasts to Tango (e.g., VA does not). Common agencies with forecasts: HHS, DHS, GSA, NIH, FAA, NIST. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
 		{
 			query: z
 				.string()
@@ -38,7 +38,7 @@ export function registerSearchForecastsTool(
 				.string()
 				.optional()
 				.describe(
-					"Agency acronym. Supports OR logic with pipe (HHS|DHS) or AND logic with comma (HHS,DHS). Example: 'HHS' or 'DHS|GSA'",
+					"Agency acronym (e.g., 'HHS', 'DHS', 'GSA'). Supports OR logic with pipe (HHS|DHS) or AND logic with comma (HHS,DHS). Example: 'HHS' or 'DHS|GSA'. Note: Not all agencies publish forecasts.",
 				),
 			source_system: z
 				.string()
