@@ -4,6 +4,10 @@
  * Searches federal agencies by name, abbreviation, or code to help users find
  * correct agency codes for API searches. Solves the common problem of not knowing
  * whether to use "VA" vs "Department of Veterans Affairs" vs "3600".
+ *
+ * Enhancement: Includes forecast availability data to help agents identify which
+ * agencies publish procurement forecasts to Tango. This enables strategic planning
+ * by surfacing agencies with predictive opportunities.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -13,6 +17,7 @@ import type { CacheManager } from "@/cache/kv-cache";
 import { sanitizeToolArgs } from "@/middleware/sanitization";
 import type { Env } from "@/types/env";
 import { getLogger } from "@/utils/logger";
+import { createAgencyForecastDiscoveryService } from "@/services/agency-forecast-discovery";
 
 /**
  * Register lookup agency tool with the MCP server
@@ -25,7 +30,7 @@ export function registerLookupAgencyTool(
 ): void {
 	server.tool(
 		"lookup_tango_agency",
-		"Search federal agencies by name, abbreviation, or code to find correct agency identifiers for Tango API searches. This tool helps resolve ambiguity when users refer to agencies by common names (e.g., 'VA', 'Veterans Affairs', 'Department of Veterans Affairs') and need the official agency code. Returns agency code, full name, abbreviation, and parent department. Useful for: finding correct agency codes before searching contracts/forecasts, discovering sub-agencies within departments, confirming agency names and acronyms, exploring the full list of federal agencies. The /api/agencies/ endpoint is public and does not require authentication. Maximum 100 results per request.",
+		"Search federal agencies by name, abbreviation, or code to find correct agency identifiers for Tango API searches. This tool helps resolve ambiguity when users refer to agencies by common names (e.g., 'VA', 'Veterans Affairs', 'Department of Veterans Affairs') and need the official agency code. Returns agency code, full name, abbreviation, parent department, and forecast availability. The 'has_forecasts' field indicates whether the agency actively publishes procurement forecasts to Tango (data refreshed every 24 hours). Useful for: finding correct agency codes before searching contracts/forecasts, identifying agencies with predictive opportunities, discovering sub-agencies within departments, confirming agency names and acronyms, exploring the full list of federal agencies. The /api/agencies/ endpoint is public and does not require authentication. Maximum 100 results per request.",
 		{
 			query: z
 				.string()
@@ -66,7 +71,15 @@ export function registerLookupAgencyTool(
 
 				// Call Tango API with caching
 				const client = new TangoApiClient(env, cache);
-				const response = await client.searchAgencies(params, apiKey);
+
+				// Create forecast discovery service
+				const discoveryService = createAgencyForecastDiscoveryService(client, cache);
+
+				// Get forecast availability data in parallel with agency search
+				const [response, forecastDiscovery] = await Promise.all([
+					client.searchAgencies(params, apiKey),
+					discoveryService.discoverAgencies(apiKey),
+				]);
 
 				// Handle API error
 				if (!response.success || !response.data) {
@@ -92,7 +105,7 @@ export function registerLookupAgencyTool(
 					};
 				}
 
-				// Normalize results
+				// Normalize results and enhance with forecast availability
 				const agencies = (response.data.results || []).map((agency) => ({
 					code: agency.code || null,
 					name: agency.name || null,
@@ -103,6 +116,9 @@ export function registerLookupAgencyTool(
 								code: agency.department.code || null,
 						  }
 						: null,
+					has_forecasts: agency.code
+						? forecastDiscovery.agencies.get(agency.code) ?? false
+						: false,
 				}));
 
 				// Build response envelope
@@ -133,6 +149,10 @@ export function registerLookupAgencyTool(
 						duration_ms: Date.now() - startTime,
 						cached: response.cache?.hit || false,
 						api_calls: 1,
+						forecast_discovery_cached: forecastDiscovery.cached,
+						forecast_discovery_sampled: forecastDiscovery.sampled,
+						agencies_with_forecasts: forecastDiscovery.agencies.size,
+						forecast_discovery_error: forecastDiscovery.error,
 					},
 				};
 

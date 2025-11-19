@@ -32,6 +32,20 @@ const mockEnv: Env = {
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+/**
+ * Helper to create mock Response objects with both json() and text() methods
+ */
+function createMockResponse(data: any, options: { ok?: boolean; status?: number; headers?: Headers } = {}) {
+  const responseText = JSON.stringify(data);
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    headers: options.headers ?? new Headers({ "Content-Type": "application/json" }),
+    json: async () => data,
+    text: async () => responseText,
+  };
+}
+
 describe("TangoApiClient", () => {
   let client: TangoApiClient;
 
@@ -78,11 +92,7 @@ describe("TangoApiClient", () => {
         count: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.searchContracts({ limit: 10 }, "test-api-key");
 
@@ -100,11 +110,7 @@ describe("TangoApiClient", () => {
     it("should sanitize input parameters", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -139,11 +145,7 @@ describe("TangoApiClient", () => {
         count: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.searchGrants({ limit: 10 }, "test-api-key");
 
@@ -160,11 +162,7 @@ describe("TangoApiClient", () => {
         total_contracts: 10,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.getVendorProfile("J3RW5C5KVLZ1", "test-api-key");
 
@@ -189,11 +187,7 @@ describe("TangoApiClient", () => {
     it("should accept valid UEI formats", async () => {
       const mockResponse = { uei: "J3RW5C5KVLZ1" };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
 
       // Uppercase
       await expect(
@@ -226,11 +220,7 @@ describe("TangoApiClient", () => {
         count: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.searchOpportunities({ limit: 10 }, "test-api-key");
 
@@ -241,12 +231,7 @@ describe("TangoApiClient", () => {
 
   describe("error handling", () => {
     it("should handle 404 Not Found", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ error: "Resource not found" }),
-        headers: new Headers(),
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({ error: "Resource not found" }, { ok: false, status: 404, headers: new Headers() }));
 
       await expect(client.searchContracts({ limit: 10 }, "test-api-key")).rejects.toThrow(
         TangoApiError,
@@ -257,12 +242,9 @@ describe("TangoApiClient", () => {
       const headers = new Headers();
       headers.set("Retry-After", "5");
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        json: async () => ({ error: "Rate limit exceeded" }),
-        headers,
-      });
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ error: "Rate limit exceeded" }, { ok: false, status: 429, headers })
+      );
 
       try {
         await client.searchContracts({ limit: 10 }, "test-api-key");
@@ -277,12 +259,7 @@ describe("TangoApiClient", () => {
     });
 
     it("should handle 500 Server Error", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: "Internal server error" }),
-        headers: new Headers(),
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({ error: "Internal server error" }, { ok: false, status: 500, headers: new Headers() }));
 
       await expect(client.searchContracts({ limit: 10 }, "test-api-key")).rejects.toThrow(
         TangoApiError,
@@ -314,11 +291,7 @@ describe("TangoApiClient", () => {
     it("should strip control characters from strings", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -335,11 +308,7 @@ describe("TangoApiClient", () => {
     it("should trim whitespace from strings", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -355,11 +324,7 @@ describe("TangoApiClient", () => {
     it("should handle null and undefined values", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -379,11 +344,7 @@ describe("TangoApiClient", () => {
     it("should preserve numbers and booleans", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -403,11 +364,7 @@ describe("TangoApiClient", () => {
     it("should enforce minimum delay between requests", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
 
       const start = Date.now();
 
@@ -427,11 +384,7 @@ describe("TangoApiClient", () => {
     it("should build correct URLs with query parameters", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -452,11 +405,7 @@ describe("TangoApiClient", () => {
     it("should properly encode special characters in parameters", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts(
         {
@@ -474,11 +423,7 @@ describe("TangoApiClient", () => {
     it("should include correct headers", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.searchContracts({ limit: 10 }, "test-api-key-123");
 
@@ -505,11 +450,7 @@ describe("TangoApiClient", () => {
         count: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.getAgencyContracts(
         "DOD",
@@ -534,11 +475,7 @@ describe("TangoApiClient", () => {
         count: 0,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.getAgencyContracts(
         "GSA",
@@ -562,11 +499,7 @@ describe("TangoApiClient", () => {
     it("should handle agency codes with different formats", async () => {
       const mockResponse = { results: [], total: 0, count: 0 };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
 
       // Test various agency code formats
       await client.getAgencyContracts("DOD", "awarding", {}, "test-api-key");

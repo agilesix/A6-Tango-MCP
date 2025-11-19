@@ -428,8 +428,34 @@ export class TangoApiClient {
           data = (await response.text()) as unknown as T;
           format = 'csv';
         } else {
-          // Parse JSON response
-          data = (await response.json()) as T;
+          // Parse JSON response with defensive handling
+          const text = await response.text();
+
+          // Check for empty response
+          if (!text || text.trim().length === 0) {
+            throw new TangoApiError(
+              "API returned empty response",
+              response.status
+            );
+          }
+
+          try {
+            data = JSON.parse(text) as T;
+          } catch (parseError) {
+            // If JSON parse fails, check if we requested CSV but got JSON Content-Type
+            if (sanitizedParams.format === 'csv') {
+              throw new TangoApiError(
+                "CSV export not supported by this endpoint. The API returned an invalid response when format=csv was requested.",
+                response.status
+              );
+            }
+
+            throw new TangoApiError(
+              `Failed to parse API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+              response.status
+            );
+          }
+
           format = 'json';
         }
 
