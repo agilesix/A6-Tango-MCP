@@ -1,0 +1,28 @@
+name: "API Test - Get Company Intelligence"
+description: "Verify get_tango_company_intelligence returns company data with AI summary (1 API call)"
+tool: "get_tango_company_intelligence"
+arguments:
+  company_name: "Agile Six Applications"
+
+assertions:
+  - type: "success"
+  - type: "response_time_ms"
+    max: 15000
+  - type: "json_path"
+    path: "$.company.name"
+    expected_type: "string"
+  - type: "json_path"
+    path: "$.company.ai_summary"
+    expected_type: "string"
+  - type: "json_path"
+    path: "$.related_news"
+    expected_type: "array"
+  - type: "json_path"
+    path: "$.metadata.news_count"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.metadata.people_count"
+    expected_type: "number"
+  - type: "json_path"
+    path: "$.execution.cached"
+    expected_type: "boolean"

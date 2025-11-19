@@ -1125,6 +1125,69 @@ export interface TangoAgencyListResponse {
 }
 
 /**
+ * Rich text node structure from Tango API
+ * Used in AI summaries and other rich content
+ */
+export interface RichTextNode {
+	type?: string; // paragraph, list, link, text, etc.
+	content?: RichTextNode[]; // Nested content
+	text?: string; // Text content
+	attrs?: Record<string, any>; // Attributes (href for links, etc.)
+	marks?: Array<{ type: string; attrs?: Record<string, any> }>; // Text formatting
+}
+
+/**
+ * Company profile from RAG endpoint
+ */
+export interface CompanyProfile {
+	ai_summary?: RichTextNode; // Rich text AI-generated summary
+	canonical_url?: string;
+	company_description?: string;
+	company_documents?: Array<{
+		url?: string;
+		title?: string;
+		document_type?: string;
+	}>;
+	company_name?: string;
+	employees_est?: number;
+	logo_url?: string;
+	popularity?: number;
+	uei?: string;
+}
+
+/**
+ * Related person from RAG endpoint
+ */
+export interface RelatedPerson {
+	name?: string;
+	title?: string;
+	email?: string;
+	company_name?: string;
+	source?: string;
+}
+
+/**
+ * Related news item from RAG endpoint
+ */
+export interface RelatedNews {
+	title?: string;
+	url?: string;
+	preview?: string;
+	published_date?: string;
+	source?: string;
+}
+
+/**
+ * Company RAG response - aggregated company intelligence
+ * Optimized for LLM consumption with AI summaries, news, and people
+ */
+export interface TangoCompanyRAGResponse {
+	company?: CompanyProfile;
+	related_people?: RelatedPerson[];
+	related_news?: RelatedNews[];
+}
+
+/**
  * Generic API response wrapper
  */
 export interface TangoApiResponse<T> {

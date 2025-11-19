@@ -28,6 +28,7 @@ import type {
   TangoAgencyListResponse,
   TangoIDVListResponse,
   TangoSubawardListResponse,
+  TangoCompanyRAGResponse,
 } from "@/types/tango-api";
 import {
   TangoAuthenticationError,
@@ -405,6 +406,26 @@ export class TangoApiClient {
     apiKey: string,
   ): Promise<ApiResponse<TangoAgencyListResponse>> {
     return this.get<TangoAgencyListResponse>("/agencies/", params, apiKey);
+  }
+
+  /**
+   * Get company intelligence (RAG endpoint)
+   *
+   * Retrieves aggregated company intelligence including AI-generated summary,
+   * related people/contacts, and recent news. Optimized for LLM consumption.
+   *
+   * Note: UEI-based search is currently broken. Use company_name parameter.
+   *
+   * @param companyName Company name to search for
+   * @param apiKey Tango API key
+   * @returns Promise resolving to company RAG response
+   */
+  async getCompanyIntelligence(
+    companyName: string,
+    apiKey: string,
+  ): Promise<ApiResponse<TangoCompanyRAGResponse>> {
+    const params = { company_name: companyName };
+    return this.get<TangoCompanyRAGResponse>("/company/rag/", params, apiKey);
   }
 
   /**
