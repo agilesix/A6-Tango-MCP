@@ -52,7 +52,7 @@ export function registerGetCompanyIntelligenceTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"get_tango_company_intelligence",
+		"get_company_intelligence",
 		"Get comprehensive company intelligence including AI-generated summary, related people/contacts, and recent news. Optimized for LLM consumption with pre-aggregated data from multiple sources. Returns company profile with AI analysis, related individuals with contact info, and recent news/contract awards. Use this for business intelligence, competitive analysis, and partner research. Note: Must provide company_name (UEI search currently unavailable). For federal contracting compliance data (SAM.gov registration, certifications, obligations), use get_tango_vendor_profile tool instead. These tools complement each other: use company intelligence for business research, vendor profile for government compliance.",
 		{
 			company_name: z
@@ -67,7 +67,7 @@ export function registerGetCompanyIntelligenceTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("get_tango_company_intelligence", args, startTime);
+				logger.toolInvocation("get_company_intelligence", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -136,7 +136,7 @@ export function registerGetCompanyIntelligenceTool(
 
 				// Build response with structured data
 				logger.toolComplete(
-					"get_tango_company_intelligence",
+					"get_company_intelligence",
 					true,
 					Date.now() - startTime,
 					{
@@ -197,7 +197,7 @@ export function registerGetCompanyIntelligenceTool(
 				logger.error(
 					"Unexpected error in get_tango_company_intelligence",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "get_tango_company_intelligence" },
+					{ tool: "get_company_intelligence" },
 				);
 				return {
 					content: [

@@ -29,7 +29,7 @@ export function registerLookupAgencyTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"lookup_tango_agency",
+		"lookup_agency",
 		"Search federal agencies by name, abbreviation, or code to find correct agency identifiers for Tango API searches. This tool helps resolve ambiguity when users refer to agencies by common names (e.g., 'VA', 'Veterans Affairs', 'Department of Veterans Affairs') and need the official agency code. Returns agency code, full name, abbreviation, parent department, and forecast availability. The 'has_forecasts' field indicates whether the agency actively publishes procurement forecasts to Tango (data refreshed every 24 hours). Note: Some agencies use different codes in forecast data vs. agency database (e.g., Department of Commerce forecasts use 'COMMERCE' but agency database uses abbreviation 'DOC'). When searching for forecasts, use the agency's official abbreviation from this tool. Useful for: finding correct agency codes before searching contracts/forecasts, identifying agencies with predictive opportunities, discovering sub-agencies within departments, confirming agency names and acronyms, exploring the full list of federal agencies. The /api/agencies/ endpoint is public and does not require authentication. Maximum 100 results per request.",
 		{
 			query: z
@@ -54,7 +54,7 @@ export function registerLookupAgencyTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("lookup_tango_agency", args, startTime);
+				logger.toolInvocation("lookup_agency", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -123,7 +123,7 @@ export function registerLookupAgencyTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"lookup_tango_agency",
+					"lookup_agency",
 					true,
 					Date.now() - startTime,
 					{
@@ -174,7 +174,7 @@ export function registerLookupAgencyTool(
 				logger.error(
 					"Unexpected error in lookup_tango_agency",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "lookup_tango_agency" }
+					{ tool: "lookup_agency" }
 				);
 				return {
 					content: [

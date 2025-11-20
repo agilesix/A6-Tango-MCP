@@ -23,7 +23,7 @@ export function registerGetContractDetailTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_contract_detail",
+		"get_contract_detail",
 		"Get detailed information for a specific federal contract by its unique key/award ID from FPDS (Federal Procurement Data System). Returns comprehensive contract details including full vendor information, awarding agency and office details, complete financial breakdown (obligated amounts, total contract value, base and options), period of performance dates, NAICS/PSC classifications, set-aside information, place of performance, contract type and status, award history, and related procurement information. Use this when you have a contract key from search results and need full details. Contract keys are in format like 'CONT_AWD_xxxxx' or 'CONT_IDV_xxxxx'.",
 		{
 			contract_key: z
@@ -38,7 +38,7 @@ export function registerGetContractDetailTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("get_tango_contract_detail", args, startTime);
+				logger.toolInvocation("get_contract_detail", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -46,7 +46,7 @@ export function registerGetContractDetailTool(
 				// Validate contract_key parameter
 				if (!sanitized.contract_key || typeof sanitized.contract_key !== "string") {
 					logger.error("Missing or invalid contract_key parameter", undefined, {
-						tool: "get_tango_contract_detail",
+						tool: "get_contract_detail",
 					});
 					return {
 						content: [
@@ -74,7 +74,7 @@ export function registerGetContractDetailTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "get_tango_contract_detail",
+						tool: "get_contract_detail",
 					});
 					return {
 						content: [
@@ -143,7 +143,7 @@ export function registerGetContractDetailTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"get_tango_contract_detail",
+					"get_contract_detail",
 					true,
 					Date.now() - startTime,
 					{
@@ -175,7 +175,7 @@ export function registerGetContractDetailTool(
 				logger.error(
 					"Unexpected error in get_tango_contract_detail",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "get_tango_contract_detail" }
+					{ tool: "get_contract_detail" }
 				);
 				return {
 					content: [

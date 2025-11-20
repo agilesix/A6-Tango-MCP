@@ -42,7 +42,7 @@ export function registerSearchContractsTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_contracts",
+		"search_contracts",
 		"Search federal contract awards from FPDS (Federal Procurement Data System) through Tango's unified API. Returns contract details including vendor information (name, UEI, DUNS), agency details, award amounts, NAICS/PSC codes, set-aside types, and performance location. Supports filtering by: free-text search, vendor name/UEI, awarding agency, funding agency (may differ from awarding), industry classifications (NAICS/PSC), award date ranges, period of performance dates (PoP start/end), contract expiration dates, fiscal year (FY runs Oct-Sep), and set-aside categories. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding contracts by vendor, agency spending analysis, market research, competitor analysis, and identifying expiring contracts. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration, and cursor-based pagination for large result sets.",
 		{
 			query: z
@@ -202,7 +202,7 @@ export function registerSearchContractsTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("search_tango_contracts", args, startTime);
+				logger.toolInvocation("search_contracts", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -211,7 +211,7 @@ export function registerSearchContractsTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "search_tango_contracts",
+						tool: "search_contracts",
 					});
 					return {
 						content: [
@@ -457,7 +457,7 @@ export function registerSearchContractsTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					return handleCsvExport(csvData, "search_tango_contracts", logger, startTime);
+					return handleCsvExport(csvData, "search_contracts", logger, startTime);
 				}
 
 				// Normalize results (JSON format)
@@ -495,7 +495,7 @@ export function registerSearchContractsTool(
 												},
 												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API works best when agency filters are separated from free-text search. Try using awarding_agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}".`,
 												example: {
-													tool: "search_tango_contracts",
+													tool: "search_contracts",
 													params: {
 														awarding_agency: analysis.suggestedAgency,
 														query: analysis.refinedQuery || undefined,
@@ -523,7 +523,7 @@ export function registerSearchContractsTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_contracts",
+					"search_contracts",
 					true,
 					Date.now() - startTime,
 					{
@@ -572,7 +572,7 @@ export function registerSearchContractsTool(
 				logger.error(
 					"Unexpected error in search_tango_contracts",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_contracts" },
+					{ tool: "search_contracts" },
 				);
 				return {
 					content: [

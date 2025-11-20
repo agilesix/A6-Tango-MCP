@@ -23,7 +23,7 @@ export function registerGetOpportunityDetailTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_opportunity_detail",
+		"get_opportunity_detail",
 		"Get detailed information for a specific federal contract opportunity by its unique opportunity ID from SAM.gov. Returns comprehensive opportunity details including full opportunity description and summary, solicitation number and notice information, notice type and status, active/inactive status, awarding agency and office details, posted date and response deadline, NAICS industry classification code, set-aside information, place of performance details, link to full solicitation on SAM.gov, point of contact information, amendment history, and related documents. Use this when you have an opportunity ID from search results and need full solicitation details. Opportunity IDs are UUID format strings.",
 		{
 			opportunity_id: z
@@ -39,7 +39,7 @@ export function registerGetOpportunityDetailTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("get_tango_opportunity_detail", args, startTime);
+				logger.toolInvocation("get_opportunity_detail", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -50,7 +50,7 @@ export function registerGetOpportunityDetailTool(
 					typeof sanitized.opportunity_id !== "string"
 				) {
 					logger.error("Missing or invalid opportunity_id parameter", undefined, {
-						tool: "get_tango_opportunity_detail",
+						tool: "get_opportunity_detail",
 					});
 					return {
 						content: [
@@ -78,7 +78,7 @@ export function registerGetOpportunityDetailTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "get_tango_opportunity_detail",
+						tool: "get_opportunity_detail",
 					});
 					return {
 						content: [
@@ -147,7 +147,7 @@ export function registerGetOpportunityDetailTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"get_tango_opportunity_detail",
+					"get_opportunity_detail",
 					true,
 					Date.now() - startTime,
 					{
@@ -179,7 +179,7 @@ export function registerGetOpportunityDetailTool(
 				logger.error(
 					"Unexpected error in get_tango_opportunity_detail",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "get_tango_opportunity_detail" }
+					{ tool: "get_opportunity_detail" }
 				);
 				return {
 					content: [

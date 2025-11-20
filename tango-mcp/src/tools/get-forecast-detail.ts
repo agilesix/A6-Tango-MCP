@@ -23,7 +23,7 @@ export function registerGetForecastDetailTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_forecast_detail",
+		"get_forecast_detail",
 		"Get detailed information for a specific federal procurement forecast by its unique forecast ID. Returns comprehensive forecast details including full description, title, agency and source system information, anticipated award date, fiscal year, NAICS industry classification code, status, set-aside information, primary contact details, place of performance, estimated contract period, contract vehicle type, complete raw data from source system, and formatted display representation. Use this when you have a forecast ID from search results and need complete forecast details. Note: Only agencies that publish forecasts to Tango will have forecast data available. Forecast IDs are integer values.",
 		{
 			forecast_id: z
@@ -38,7 +38,7 @@ export function registerGetForecastDetailTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("get_tango_forecast_detail", args, startTime);
+				logger.toolInvocation("get_forecast_detail", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -50,7 +50,7 @@ export function registerGetForecastDetailTool(
 					 typeof sanitized.forecast_id !== "number")
 				) {
 					logger.error("Missing or invalid forecast_id parameter", undefined, {
-						tool: "get_tango_forecast_detail",
+						tool: "get_forecast_detail",
 					});
 					return {
 						content: [
@@ -78,7 +78,7 @@ export function registerGetForecastDetailTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "get_tango_forecast_detail",
+						tool: "get_forecast_detail",
 					});
 					return {
 						content: [
@@ -147,7 +147,7 @@ export function registerGetForecastDetailTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"get_tango_forecast_detail",
+					"get_forecast_detail",
 					true,
 					Date.now() - startTime,
 					{
@@ -179,7 +179,7 @@ export function registerGetForecastDetailTool(
 				logger.error(
 					"Unexpected error in get_tango_forecast_detail",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "get_tango_forecast_detail" }
+					{ tool: "get_forecast_detail" }
 				);
 				return {
 					content: [

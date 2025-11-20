@@ -30,7 +30,7 @@ export function registerSearchGrantsTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_grants",
+		"search_grants",
 		"Search grant opportunities from Grants.gov through Tango's unified API. Returns pre-award opportunities available for application, NOT post-award USASpending data. Includes opportunity details: title, description, status (Posted/Forecasted), important dates (posted, response deadline), eligible applicant types, funding categories and instruments, funding details (ceiling, floor, estimated total), CFDA numbers, agency, contact information. Useful for: finding grant opportunities by subject area, identifying deadlines, checking eligibility requirements, researching funding amounts. Maximum 100 results per request.",
 		{
 			query: z
@@ -145,7 +145,7 @@ export function registerSearchGrantsTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("search_tango_grants", args, startTime);
+				logger.toolInvocation("search_grants", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -154,7 +154,7 @@ export function registerSearchGrantsTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "search_tango_grants",
+						tool: "search_grants",
 					});
 					return {
 						content: [
@@ -295,7 +295,7 @@ export function registerSearchGrantsTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_grants",
+					"search_grants",
 					true,
 					Date.now() - startTime,
 					{
@@ -338,7 +338,7 @@ export function registerSearchGrantsTool(
 				logger.error(
 					"Unexpected error in search_tango_grants",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_grants" },
+					{ tool: "search_grants" },
 				);
 				return {
 					content: [

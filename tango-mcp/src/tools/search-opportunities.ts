@@ -37,7 +37,7 @@ export function registerSearchOpportunitiesTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_opportunities",
+		"search_opportunities",
 		"Search federal contract opportunities, forecasts, and solicitation notices through Tango's unified API. Returns opportunity details including solicitation number, title, type (solicitation/forecast), status, awarding office, posted date, response deadline, NAICS code, set-aside type, place of performance, description, and SAM.gov link. SEARCH BEHAVIOR: The 'query' parameter uses AND logic - ALL words must match. Multi-word queries like 'cloud services AI infrastructure' often return zero results. BEST PRACTICES: Use 1-2 specific keywords ('cybersecurity', 'cloud services'), separate agency from topic using the agency parameter, try single terms first. EXAMPLES THAT WORK: query='cybersecurity' with agency='DHS', query='professional services', query='cloud'. EXAMPLES THAT DON'T WORK: query='DHS cloud AI services' (mixing agency + topics), query='cybersecurity security IT' (redundant synonyms). Supports filtering by: free-text search, agency, NAICS code, set-aside type, posted date range, response deadline, active status (boolean: true/false/undefined), and notice type. Useful for identifying bid opportunities, market intelligence, and procurement planning. Maximum 100 results per request. Supports CSV export via export_format parameter for Excel/spreadsheet integration.",
 		{
 			query: z
@@ -129,7 +129,7 @@ export function registerSearchOpportunitiesTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("search_tango_opportunities", args, startTime);
+				logger.toolInvocation("search_opportunities", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -277,7 +277,7 @@ export function registerSearchOpportunitiesTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					return handleCsvExport(csvData, "search_tango_opportunities", logger, startTime);
+					return handleCsvExport(csvData, "search_opportunities", logger, startTime);
 				}
 
 				// Normalize results (JSON format)
@@ -315,7 +315,7 @@ export function registerSearchOpportunitiesTool(
 												},
 												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API uses AND logic (all words must match) and works best when agency filters are separated from free-text search. Try using agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}".`,
 												example: {
-													tool: "search_tango_opportunities",
+													tool: "search_opportunities",
 													params: {
 														agency: analysis.suggestedAgency,
 														query: analysis.refinedQuery || undefined,
@@ -343,7 +343,7 @@ export function registerSearchOpportunitiesTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_opportunities",
+					"search_opportunities",
 					true,
 					Date.now() - startTime,
 					{

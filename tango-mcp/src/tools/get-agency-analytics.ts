@@ -70,7 +70,7 @@ export function registerGetAgencyAnalyticsTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_agency_analytics",
+		"get_agency_analytics",
 		"Generate comprehensive spending analytics for a specific federal agency using Tango's unified API. Returns total obligated spending, contract counts, top vendors, top NAICS industry codes, and optional monthly spending trends. Supports filtering by fiscal year and award type (contracts only for now). Useful for agency spending analysis, vendor landscape research, market sizing, and budget tracking. Example: Get DOD spending in FY2024, or analyze Department of Education contract patterns.",
 		{
 			agency_code: z
@@ -119,7 +119,7 @@ export function registerGetAgencyAnalyticsTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("get_tango_agency_analytics", args, startTime);
+				logger.toolInvocation("get_agency_analytics", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);

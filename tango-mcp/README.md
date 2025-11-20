@@ -8,9 +8,10 @@ This MCP server provides AI agents with access to federal contract awards, grant
 
 ### Key Features
 
-- **5 Specialized Tools**: Search contracts, grants, opportunities, vendor profiles, and spending summaries
+- **16 Specialized Tools**: Search contracts, grants, opportunities, vendor profiles, spending summaries, forecasts, and more
 - **KV Caching**: Cloudflare KV-based caching with 5-minute TTL for improved performance
 - **Rate Limiting**: Per-worker rate limiting (100ms between API calls) to prevent overuse
+- **Authentication**: Supports both API Key and OAuth (Google) authentication
 - **Error Handling**: Comprehensive error types with actionable recovery suggestions
 - **Input Sanitization**: Protection against injection attacks and malicious inputs
 - **Structured Logging**: JSON-formatted logs for observability and debugging
@@ -34,16 +35,6 @@ Search federal contract awards from FPDS (Federal Procurement Data System).
 - `set_aside_type` (optional): Contract set-aside category (SBA, WOSB, SDVOSB, 8A, HUBZone)
 - `limit` (optional): Maximum results (default: 10, max: 100)
 
-**Example:**
-```json
-{
-  "query": "IT services",
-  "awarding_agency": "Department of Defense",
-  "naics_code": "541512",
-  "limit": 20
-}
-```
-
 ### 2. search_tango_grants
 
 Search federal grants and financial assistance awards from USASpending.
@@ -60,16 +51,6 @@ Search federal grants and financial assistance awards from USASpending.
 - `award_amount_max` (optional): Maximum award amount (client-side filtering)
 - `limit` (optional): Maximum results (default: 10, max: 100)
 
-**Example:**
-```json
-{
-  "query": "education research",
-  "recipient_name": "University",
-  "award_amount_min": 100000,
-  "limit": 15
-}
-```
-
 ### 3. get_tango_vendor_profile
 
 Retrieve comprehensive entity profile from SAM.gov data.
@@ -77,14 +58,6 @@ Retrieve comprehensive entity profile from SAM.gov data.
 **Parameters:**
 - `uei` (required): Unique Entity Identifier (12-character alphanumeric)
 - `include_history` (optional): Include recent contract/grant history (default: false)
-
-**Example:**
-```json
-{
-  "uei": "J3RW5C5KVLZ1",
-  "include_history": true
-}
-```
 
 ### 4. search_tango_opportunities
 
@@ -102,16 +75,6 @@ Search federal contract opportunities, forecasts, and solicitation notices.
 - `notice_type` (optional): Notice type code (f = forecasted, s = solicitations)
 - `limit` (optional): Maximum results (default: 10, max: 100)
 
-**Example:**
-```json
-{
-  "query": "cybersecurity",
-  "active": true,
-  "naics_code": "541512",
-  "limit": 10
-}
-```
-
 ### 5. get_tango_spending_summary
 
 Generate aggregated spending analytics from federal contracts and grants.
@@ -124,14 +87,107 @@ Generate aggregated spending analytics from federal contracts and grants.
 - `group_by` (optional): Aggregation dimension (agency, vendor, naics, psc, month) - default: vendor
 - `limit` (optional): Maximum records to analyze (default: 100, max: 100)
 
-**Example:**
-```json
-{
-  "fiscal_year": 2024,
-  "group_by": "agency",
-  "limit": 100
-}
-```
+### 6. search_idvs
+
+Search Indefinite Delivery Vehicles (IDVs) including GWACs, IDIQs, BPAs, and GSA Schedules.
+
+**Parameters:**
+- `query` (optional): Free-text search across IDV descriptions
+- `recipient_uei` (optional): Unique Entity Identifier
+- `recipient_name` (optional): Vendor/contractor name filter
+- `idv_type` (optional): IDV type code(s) (A=GWAC, B=IDC/IDIQ, etc.)
+- `awarding_agency` (optional): Awarding agency name or code
+- `naics_code` (optional): NAICS code(s)
+- `psc_code` (optional): Product/Service Code(s)
+- `set_aside_type` (optional): Set-aside code(s)
+- `award_date_start` (optional): Earliest award date
+- `award_date_end` (optional): Latest award date
+- `fiscal_year` (optional): Exact fiscal year
+- `expiring_after` (optional): Find IDVs expiring after this date
+- `limit` (optional): Number of results (default: 10)
+
+### 7. search_subawards
+
+Search federal subawards (subcontracts) from FSRS.
+
+**Parameters:**
+- `prime_uei` (optional): Prime contractor UEI
+- `sub_uei` (optional): Subcontractor UEI
+- `awarding_agency` (optional): Awarding agency name or code
+- `recipient` (optional): Recipient name or UEI
+- `fiscal_year` (optional): Exact fiscal year
+- `limit` (optional): Number of results per page (default: 25)
+- `page` (optional): Page number
+
+### 8. get_contract_detail
+
+Get detailed information for a specific federal contract by key/award ID.
+
+**Parameters:**
+- `contract_key` (required): Contract key/award ID (e.g., 'CONT_AWD_xxxxx')
+
+### 9. get_grant_detail
+
+Get detailed information for a specific grant opportunity by grant ID.
+
+**Parameters:**
+- `grant_id` (required): Numeric grant opportunity ID
+
+### 10. get_opportunity_detail
+
+Get detailed information for a specific contract opportunity by opportunity ID.
+
+**Parameters:**
+- `opportunity_id` (required): UUID format opportunity ID
+
+### 11. get_agency_analytics
+
+Generate spending analytics for federal agencies.
+
+**Parameters:**
+- `agency_code` (required): Agency code (e.g., 'DOD', 'GSA')
+- `fiscal_year` (optional): Fiscal year to filter spending
+- `award_type` (optional): Type of awards (default: 'contracts')
+- `include_trends` (optional): Include monthly spending trends
+- `limit` (optional): Maximum contracts to analyze (default: 100)
+
+### 12. search_forecasts
+
+Search federal procurement forecast opportunities.
+
+**Parameters:**
+- `query` (optional): Free-text search
+- `agency` (optional): Agency acronym
+- `naics_code` (optional): NAICS code(s)
+- `fiscal_year` (optional): Exact fiscal year
+- `status` (optional): Forecast status
+- `limit` (optional): Maximum results (default: 10)
+
+### 13. get_forecast_detail
+
+Get detailed information for a specific forecast by forecast ID.
+
+**Parameters:**
+- `forecast_id` (required): Forecast ID (integer or string)
+
+### 14. lookup_agency
+
+Search federal agencies by name, abbreviation, or code.
+
+**Parameters:**
+- `query` (required): Search term
+- `limit` (optional): Maximum number of agencies (default: 10)
+
+### 15. get_company_intelligence
+
+Get comprehensive company intelligence including AI summary and news.
+
+**Parameters:**
+- `company_name` (required): Company name to search for
+
+### 16. health
+
+Check server health and connectivity.
 
 ## Installation
 
@@ -403,7 +459,18 @@ src/
 │   ├── search-grants.ts
 │   ├── get-vendor-profile.ts
 │   ├── search-opportunities.ts
-│   └── get-spending-summary.ts
+│   ├── get-spending-summary.ts
+│   ├── search-idvs.ts
+│   ├── search-subawards.ts
+│   ├── get-contract-detail.ts
+│   ├── get-grant-detail.ts
+│   ├── get-opportunity-detail.ts
+│   ├── get-agency-analytics.ts
+│   ├── search-forecasts.ts
+│   ├── get-forecast-detail.ts
+│   ├── lookup-agency.ts
+│   ├── get-company-intelligence.ts
+│   └── health.ts
 ├── api/                  # Tango API client
 │   └── tango-client.ts
 ├── types/                # TypeScript interfaces
