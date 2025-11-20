@@ -28,7 +28,7 @@ export function registerSearchForecastsTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_forecasts",
+		"search_forecasts",
 		"Search federal procurement forecast opportunities from government agencies that publish forecasts. Forecasts represent anticipated future procurement opportunities with expected award dates and planning information. Returns forecast details including title, description, agency, source system, anticipated award date, fiscal year, NAICS code, status, set-aside type, primary contact, place of performance, and contract period estimates. SEARCH BEHAVIOR: The 'query' parameter performs AND-logic phrase matching - ALL words in your query must appear in results. Multi-word queries like 'artificial intelligence AI machine learning' often return zero results. BEST PRACTICES: Use 1-2 specific keywords ('cybersecurity', 'cloud services'), separate agency from topic using the agency parameter, try single terms first ('AI' before 'artificial intelligence AI'). EXAMPLES THAT WORK: query='cybersecurity' with agency='HHS', query='professional services', query='AI'. EXAMPLES THAT DON'T WORK: query='HHS cloud AI services' (mixing agency + topics), query='artificial intelligence AI ML' (too many synonyms). Supports filtering by: free-text search, agency, source system, NAICS code (exact or prefix), fiscal year (exact or range), status, award date range, modification date range, and active status. IMPORTANT: Not all agencies publish forecasts to Tango (e.g., VA does not). Common agencies with forecasts: HHS, DHS, GSA, NIH, FAA, NIST. Useful for procurement planning, market intelligence, and identifying upcoming opportunities. Maximum 100 results per request. Supports CSV export via export_format parameter.",
 		{
 			query: z
@@ -153,7 +153,7 @@ export function registerSearchForecastsTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("search_tango_forecasts", args, startTime);
+				logger.toolInvocation("search_forecasts", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -247,7 +247,7 @@ export function registerSearchForecastsTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					return handleCsvExport(csvData, "search_tango_forecasts", logger, startTime);
+					return handleCsvExport(csvData, "search_forecasts", logger, startTime);
 				}
 
 				// Normalize results (JSON format)
@@ -285,7 +285,7 @@ export function registerSearchForecastsTool(
 												},
 												explanation: `Your query "${sanitized.query}" appears to mix agency and topic keywords. The API uses AND logic (all words must match) and works best when agency filters are separated from free-text search. Try using agency="${analysis.suggestedAgency}" with query="${analysis.refinedQuery || sanitized.query}". Note: Not all agencies publish forecasts to Tango. If this agency has no forecasts, you'll get zero results even with the correct parameters.`,
 												example: {
-													tool: "search_tango_forecasts",
+													tool: "search_forecasts",
 													params: {
 														agency: analysis.suggestedAgency,
 														query: analysis.refinedQuery || undefined,
@@ -313,7 +313,7 @@ export function registerSearchForecastsTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_forecasts",
+					"search_forecasts",
 					true,
 					Date.now() - startTime,
 					{
@@ -359,7 +359,7 @@ export function registerSearchForecastsTool(
 				logger.error(
 					"Unexpected error in search_tango_forecasts",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_forecasts" }
+					{ tool: "search_forecasts" }
 				);
 				return {
 					content: [

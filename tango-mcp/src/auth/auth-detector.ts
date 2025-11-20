@@ -65,15 +65,14 @@ export function detectAuthMethod(
  * Get the active authentication token for API calls
  * @param authInfo - Authentication info from detectAuthMethod()
  * @returns Token to use for Tango API authentication
+ *
+ * NOTE: Google OAuth is used to authenticate the USER to the MCP server,
+ * but we always use the Tango API key for making API calls to Tango's backend.
  */
 export function getAuthToken(authInfo: AuthInfo): string | undefined {
-	if (authInfo.method === "oauth" && authInfo.oauthToken) {
-		return authInfo.oauthToken;
-	}
-	if (authInfo.method === "api-key" && authInfo.apiKey) {
-		return authInfo.apiKey;
-	}
-	return undefined;
+	// Always use Tango API key for API calls (from env or props)
+	// OAuth is only for user authentication to the MCP server
+	return authInfo.apiKey;
 }
 
 /**

@@ -43,8 +43,8 @@ app.get("/authorize", async (c) => {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		csrfToken,
 		server: {
-			description: "This MCP Server is a demo for Google OAuth.",
-			name: "Google OAuth Demo",
+			description: "Access government contracting data, grants, opportunities, and vendor intelligence through the Tango API.",
+			name: "Tango MCP Server",
 		},
 		setCookie,
 		state: { oauthReqInfo },
@@ -235,6 +235,19 @@ app.get("/callback", async (c) => {
 	return new Response(null, {
 		status: 302,
 		headers,
+	});
+});
+
+/**
+ * Health check endpoint (public, no auth required)
+ */
+app.get("/health", async (c) => {
+	return c.json({
+		status: "healthy",
+		service: "tango-mcp",
+		version: "1.0.0",
+		timestamp: new Date().toISOString(),
+		oauth_configured: !!(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
 	});
 });
 

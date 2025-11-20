@@ -23,7 +23,7 @@ export function registerGetGrantDetailTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_grant_detail",
+		"get_grant_detail",
 		"Get detailed information for a specific grant opportunity by its unique grant ID from Grants.gov. Returns comprehensive grant opportunity details including full opportunity description, agency information, important dates (posted, response, close, archive), CFDA numbers and titles, eligible applicant types and eligibility descriptions, funding categories and instruments, detailed funding information (award ceiling/floor, estimated total funding, expected number of awards), grantor contact information, additional information and links, opportunity status, and last updated timestamp. Use this when you have a grant ID from search results and need full opportunity details. Grant IDs are numeric integers.",
 		{
 			grant_id: z
@@ -40,7 +40,7 @@ export function registerGetGrantDetailTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("get_tango_grant_detail", args, startTime);
+				logger.toolInvocation("get_grant_detail", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -48,7 +48,7 @@ export function registerGetGrantDetailTool(
 				// Validate grant_id parameter
 				if (!sanitized.grant_id || typeof sanitized.grant_id !== "number") {
 					logger.error("Missing or invalid grant_id parameter", undefined, {
-						tool: "get_tango_grant_detail",
+						tool: "get_grant_detail",
 					});
 					return {
 						content: [
@@ -75,7 +75,7 @@ export function registerGetGrantDetailTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "get_tango_grant_detail",
+						tool: "get_grant_detail",
 					});
 					return {
 						content: [
@@ -143,7 +143,7 @@ export function registerGetGrantDetailTool(
 				}
 
 				// Build response envelope
-				logger.toolComplete("get_tango_grant_detail", true, Date.now() - startTime, {
+				logger.toolComplete("get_grant_detail", true, Date.now() - startTime, {
 					grant_id: sanitized.grant_id,
 					cached: response.cache?.hit || false,
 				});
@@ -171,7 +171,7 @@ export function registerGetGrantDetailTool(
 				logger.error(
 					"Unexpected error in get_tango_grant_detail",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "get_tango_grant_detail" }
+					{ tool: "get_grant_detail" }
 				);
 				return {
 					content: [

@@ -41,7 +41,7 @@ export function registerSearchIDVsTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_idvs",
+		"search_idvs",
 		"Search Indefinite Delivery Vehicles (IDVs) including GWACs, IDIQs, BPAs, and GSA Schedules. These are master contract vehicles under which task orders are issued. Use this to find contract vehicles held by vendors, not individual task orders. Supports filtering by vendor (name/UEI), IDV type (GWAC/IDIQ/BPA/FSS/BOA), agencies, industry codes (NAICS/PSC), set-aside types, award dates, fiscal years, and expiration dates (last_date_to_order). Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Useful for finding active contract vehicles, identifying expiring vehicles, analyzing vendor portfolios, and market research.",
 		{
 			query: z
@@ -167,7 +167,7 @@ export function registerSearchIDVsTool(
 
 			try {
 				// Log tool invocation
-				logger.toolInvocation("search_tango_idvs", args, startTime);
+				logger.toolInvocation("search_idvs", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -176,7 +176,7 @@ export function registerSearchIDVsTool(
 				const apiKey = userApiKey || env.TANGO_API_KEY;
 				if (!apiKey) {
 					logger.error("Missing API key", undefined, {
-						tool: "search_tango_idvs",
+						tool: "search_idvs",
 					});
 					return {
 						content: [
@@ -361,7 +361,7 @@ export function registerSearchIDVsTool(
 				// Handle CSV format response
 				if (response.format === "csv") {
 					const csvData = response.data as unknown as string;
-					return handleCsvExport(csvData, "search_tango_idvs", logger, startTime);
+					return handleCsvExport(csvData, "search_idvs", logger, startTime);
 				}
 
 				// Normalize results (JSON format)
@@ -372,7 +372,7 @@ export function registerSearchIDVsTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_idvs",
+					"search_idvs",
 					true,
 					Date.now() - startTime,
 					{
@@ -421,7 +421,7 @@ export function registerSearchIDVsTool(
 				logger.error(
 					"Unexpected error in search_tango_idvs",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_idvs" },
+					{ tool: "search_idvs" },
 				);
 				return {
 					content: [

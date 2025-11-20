@@ -39,7 +39,7 @@ export function registerSearchSubawardsTool(
 	userApiKey?: string,
 ): void {
 	server.tool(
-		"search_tango_subawards",
+		"search_subawards",
 		"Search federal subawards (subcontracts awarded by prime contractors to smaller businesses). Data from FSRS (Federal Subaward Reporting System) for awards over $30,000. Essential for small businesses looking for teaming partners, analyzing supply chain relationships, and identifying subcontracting opportunities. Supports filtering by prime contractor (UEI), subcontractor (UEI), agencies, fiscal years, and prime award. Use this to find who is getting paid by prime contractors, identify active subcontractors in specific industries, and research teaming relationships. Federal fiscal years: FY2024 = Oct 1, 2023 to Sep 30, 2024. Returns offset-based pagination (page numbers). Known API limitations: (1) recipient parameter may trigger 500 errors - use prime_uei or sub_uei instead, (2) many results have incomplete data (missing contractor names/amounts) - cross-reference with vendor profiles for full details, (3) agency filtering works best with agency codes rather than full names. These are upstream API data quality issues.",
 		{
 			award_key: z.string().optional().describe(
@@ -81,7 +81,7 @@ export function registerSearchSubawardsTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("search_tango_subawards", args, startTime);
+				logger.toolInvocation("search_subawards", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);
@@ -173,7 +173,7 @@ export function registerSearchSubawardsTool(
 
 				// Build response envelope
 				logger.toolComplete(
-					"search_tango_subawards",
+					"search_subawards",
 					true,
 					Date.now() - startTime,
 					{
@@ -215,7 +215,7 @@ export function registerSearchSubawardsTool(
 				logger.error(
 					"Unexpected error in search_tango_subawards",
 					error instanceof Error ? error : new Error(String(error)),
-					{ tool: "search_tango_subawards" }
+					{ tool: "search_subawards" }
 				);
 				return {
 					content: [

@@ -25,7 +25,7 @@ export function registerGetSpendingSummaryTool(
 	userApiKey?: string
 ): void {
 	server.tool(
-		"get_tango_spending_summary",
+		"get_spending_summary",
 		"Generate aggregated spending analytics from federal contracts and grants through Tango's unified API. Returns total spending, contract/grant counts, and breakdowns by agency, vendor, NAICS code, PSC code, or month. Supports filtering by: awarding agency, vendor UEI, fiscal year, and award type (contracts/grants/all). Aggregation dimensions: 'agency' (by awarding agency), 'vendor' (by recipient), 'naics' (by industry code), 'psc' (by product/service code), 'month' (by award month). Useful for spending analysis, budget tracking, market sizing, and trend identification. Maximum 100 contracts analyzed per request.",
 		{
 			awarding_agency: z
@@ -79,7 +79,7 @@ export function registerGetSpendingSummaryTool(
 			const logger = getLogger();
 
 			try {
-				logger.toolInvocation("get_tango_spending_summary", args, startTime);
+				logger.toolInvocation("get_spending_summary", args, startTime);
 
 				// Sanitize input
 				const sanitized = sanitizeToolArgs(args);

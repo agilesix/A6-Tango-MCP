@@ -8,7 +8,8 @@
 	// Auth environment variables will be added here by add-auth command
 	"vars": {
 		"TANGO_API_BASE_URL": "https://tango.makegov.com/api",
-		"CACHE_TTL_SECONDS": "300"
+		"CACHE_TTL_SECONDS": "300",
+		"HOSTED_DOMAIN": "agile6.com"
 	},
 	// </mcp-auth:vars>
 	// <mcp-bindings:kv>
