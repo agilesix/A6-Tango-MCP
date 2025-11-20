@@ -18,6 +18,11 @@
 			"binding": "TANGO_CACHE",
 			"id": "c4e01c9085ed4059b41ab918992944d4",
 			"preview_id": "placeholder_preview_id"
+		},
+		{
+			"binding": "OAUTH_KV",
+			"id": "f33bee45b261427fb4650bc50c0d8998",
+			"preview_id": "2f7ada900a9c493f8ca9ab07057b022f"
 		}
 	],
 	// </mcp-bindings:kv>
