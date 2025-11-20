@@ -28,7 +28,7 @@ All development happens in the `tango-mcp/` directory. See **[tango-mcp/README.m
 
 ## Features
 
-- **10 MCP Tools** - Search contracts, grants, opportunities, vendor profiles, and agency analytics
+- **16 MCP Tools** - Search contracts, grants, opportunities, vendor profiles, agency analytics, forecasts, and more
 - **Cloudflare Workers** - Serverless deployment with global edge network
 - **KV Caching** - Intelligent caching with 5-minute TTL
 - **Per-User API Keys** - Support for individual Tango API keys via headers
