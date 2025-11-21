@@ -176,9 +176,12 @@ export function registerSearchSubawardsTool(
 					};
 				}
 
-				// Normalize results
+				// When shape parameter is provided, return raw API response (no normalization)
+				// This preserves the shape parameter's payload reduction (60-85%)
 				const results = response.data.results || [];
-				const normalizedSubawards = results.map(normalizeSubaward);
+				const normalizedSubawards = sanitized.shape
+					? results
+					: results.map(normalizeSubaward);
 
 				// Extract pagination info
 				const nextPage = extractPageFromUrl(response.data.next);

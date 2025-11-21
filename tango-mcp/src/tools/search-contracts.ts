@@ -475,10 +475,11 @@ export function registerSearchContractsTool(
 					return handleCsvExport(csvData, "search_contracts", logger, startTime);
 				}
 
-				// Normalize results (JSON format)
-				const normalizedContracts = (response.data.results || []).map(
-					normalizeContract,
-				);
+				// When shape parameter is provided, return raw API response (no normalization)
+				// This preserves the shape parameter's payload reduction (60-85%)
+				const normalizedContracts = sanitized.shape
+					? (response.data.results || [])
+					: (response.data.results || []).map(normalizeContract);
 
 				// Check for zero results with query and provide enhanced guidance
 				if (normalizedContracts.length === 0 && sanitized.query) {

@@ -375,8 +375,11 @@ export function registerSearchIDVsTool(
 					return handleCsvExport(csvData, "search_idvs", logger, startTime);
 				}
 
-				// Normalize results (JSON format)
-				const normalizedIDVs = (response.data.results || []).map(normalizeIDV);
+				// When shape parameter is provided, return raw API response (no normalization)
+				// This preserves the shape parameter's payload reduction (60-85%)
+				const normalizedIDVs = sanitized.shape
+					? (response.data.results || [])
+					: (response.data.results || []).map(normalizeIDV);
 
 				// Extract cursor for next page
 				const nextCursor = extractCursorFromUrl(response.data.next);
