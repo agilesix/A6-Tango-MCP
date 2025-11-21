@@ -24,6 +24,7 @@ import { TangoTimeoutError, TangoNetworkError, TangoApiError } from "@/types/err
 function createMockClient(): TangoApiClient {
 	return {
 		searchForecasts: vi.fn(),
+		searchAgencies: vi.fn(),
 	} as unknown as TangoApiClient;
 }
 
