@@ -67,5 +67,51 @@
 	],
 	"dev": {
 		"port": 8788
+	},
+	// Staging environment configuration
+	"env": {
+		"staging": {
+			// Custom domain for staging
+			"routes": [
+				{
+					"pattern": "staging.marketanalyst.a6lab.ai",
+					"custom_domain": true
+				}
+			],
+			// Staging-specific KV namespaces (separate from production)
+			"kv_namespaces": [
+				{
+					"binding": "TANGO_CACHE",
+					"id": "ded9f8a667d54380889231c8395a71e6",
+					"preview_id": "placeholder_preview_id"
+				},
+				{
+					"binding": "OAUTH_KV",
+					"id": "17063974a638417bb4fe9ac06216e666",
+					"preview_id": "staging_oauth_preview"
+				}
+			],
+			// Staging-specific variables (can override defaults)
+			"vars": {
+				"TANGO_API_BASE_URL": "https://tango.makegov.com/api",
+				"CACHE_TTL_SECONDS": "300",
+				"HOSTED_DOMAIN": "agile6.com"
+			},
+			// Durable Objects for staging
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "MCP_OBJECT",
+						"class_name": "MCPServerAgent"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_sqlite_classes": ["MCPServerAgent"]
+				}
+			]
+		}
 	}
 }
