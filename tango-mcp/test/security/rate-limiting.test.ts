@@ -17,7 +17,7 @@ class MockKVNamespace implements KVNamespace {
 	private store = new Map<string, string>();
 	private expirations = new Map<string, number>();
 
-	async get(key: string, options?: { type?: "json" }): Promise<any> {
+	async get(key: string, type?: "text" | "json" | "arrayBuffer" | "stream"): Promise<any> {
 		// Check if expired
 		const expiration = this.expirations.get(key);
 		if (expiration && Date.now() > expiration) {
@@ -29,7 +29,7 @@ class MockKVNamespace implements KVNamespace {
 		const value = this.store.get(key);
 		if (value === undefined) return null;
 		if (!value) return null;
-		return options?.type === "json" ? JSON.parse(value) : value;
+		return type === "json" ? JSON.parse(value) : value;
 	}
 
 	async put(
