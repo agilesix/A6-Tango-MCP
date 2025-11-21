@@ -66,6 +66,15 @@ function normalizeArgs(args: Record<string, unknown>): Record<string, unknown> {
 			continue;
 		}
 
+		// Keep shape parameter case-sensitive (field names must match exactly)
+		if (key === "shape") {
+			const trimmed = (value as string).trim();
+			if (trimmed.length > 0) {
+				normalized[key] = trimmed; // Do NOT lowercase
+			}
+			continue;
+		}
+
 		if (typeof value === "string") {
 			// Trim and lowercase for case-insensitive consistency
 			const trimmed = value.trim();
