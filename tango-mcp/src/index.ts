@@ -29,7 +29,7 @@ import { GoogleHandler } from "./auth/google-handler.js";
 import type { Props as OAuthProps } from "./auth/utils.js";
 import { detectAuthMethod, getAuthToken, getUserIdentifier } from "./auth/auth-detector.js";
 import { validateAuthentication, getUserIdentifierFromAuth } from "./auth/validate-authentication.js";
-import { withMcpHeaderExtraction } from "./middleware/mcp-header-extractor.js";
+import { createMcpRouter } from "./router/mcp-router.js";
 // </mcp-auth:imports>
 // <mcp-bindings:imports>
 // Binding helper imports will be added here by add binding command
@@ -246,16 +246,10 @@ const staticRoutesHandler = {
 };
 
 /**
- * OAuth Provider export - Full Google OAuth integration with MCP token support
+ * OAuth Provider configuration for standard OAuth flows
  *
- * This wraps the MCP server with dual authentication:
- * 1. OAuth (Google) for user authentication in Claude Web/Code
- * 2. MCP tokens for programmatic Agent SDK access
- *
- * The MCP header extraction middleware (withMcpHeaderExtraction) extracts
- * x-mcp-access-token headers and injects them into props before the Agent
- * SDK receives the request. This enables MCP token authentication to work
- * alongside OAuth without conflicts.
+ * This OAuth Provider is used for OAuth-authenticated requests.
+ * MCP token requests bypass this entirely via the router.
  *
  * OAuth Flow:
  * 1. Client discovers OAuth endpoints via /.well-known/oauth-authorization-server
@@ -263,12 +257,6 @@ const staticRoutesHandler = {
  * 3. User approves access via Google OAuth
  * 4. After authentication, user props (name, email, accessToken) are encrypted and passed to MCP agent
  * 5. Client accesses /sse or /mcp with authenticated credentials
- *
- * MCP Token Flow:
- * 1. Middleware extracts x-mcp-access-token from request header
- * 2. Token is injected into ctx.props.mcpAccessToken
- * 3. Agent validates token in validateAuthentication()
- * 4. Client accesses /sse or /mcp with MCP token authentication
  *
  * Environment variables required:
  * - GOOGLE_CLIENT_ID: Google OAuth client ID
@@ -288,6 +276,26 @@ const oauthProvider = new OAuthProvider({
 	defaultHandler: GoogleHandler as any,
 });
 
-// Wrap with MCP header extraction middleware
-// This ensures x-mcp-access-token headers are extracted and available in props
-export default withMcpHeaderExtraction(oauthProvider);
+/**
+ * Main Worker export with OAuth bypass routing
+ *
+ * This implements dual authentication support:
+ * 1. OAuth (Google) for user authentication in Claude Web/Code
+ * 2. MCP tokens for programmatic Agent SDK access
+ *
+ * Routing Logic:
+ * - Requests to /sse or /mcp WITH x-mcp-access-token header → Direct to Agent SDK (bypass OAuth)
+ * - All other requests → Through OAuth Provider
+ *
+ * MCP Token Flow:
+ * 1. Router detects x-mcp-access-token header
+ * 2. Router injects token into ctx.props.mcpAccessToken
+ * 3. Router calls Agent SDK handler directly (bypasses OAuth)
+ * 4. Agent validates token in validateAuthentication()
+ *
+ * This architecture ensures MCP token requests are not blocked by OAuth validation,
+ * while preserving the complete OAuth flow for standard authentication.
+ *
+ * Based on: working_documents/auth2_implementation/14-oauth-bypass-architecture.md
+ */
+export default createMcpRouter(oauthProvider);
