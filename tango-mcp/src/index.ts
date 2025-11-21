@@ -28,19 +28,22 @@ import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { GoogleHandler } from "./auth/google-handler.js";
 import type { Props as OAuthProps } from "./auth/utils.js";
 import { detectAuthMethod, getAuthToken, getUserIdentifier } from "./auth/auth-detector.js";
+import { validateAuthentication, getUserIdentifierFromAuth } from "./auth/validate-authentication.js";
 // </mcp-auth:imports>
 // <mcp-bindings:imports>
 // Binding helper imports will be added here by add binding command
 // </mcp-bindings:imports>
+import { initializeEnvironment, validateEnvironment } from "./config/validate-env.js";
 
 /**
  * Props interface for per-user configuration
- * Supports both API key and OAuth authentication
+ * Supports OAuth authentication only
+ *
+ * SECURITY: The Tango API key MUST only come from env.TANGO_API_KEY (server environment)
+ * and should NEVER be provided by clients through headers or props.
+ * This prevents unauthorized clients from using their own API keys or consuming the server's quota.
  */
 export interface MCPProps extends Record<string, unknown> {
-	/** User's Tango API key from x-tango-api-key header (API key auth) */
-	tangoApiKey?: string;
-
 	/** OAuth user name (from Google OAuth flow) */
 	name?: string;
 
@@ -50,15 +53,21 @@ export interface MCPProps extends Record<string, unknown> {
 	/** OAuth access token (from Google OAuth flow) */
 	accessToken?: string;
 
+	/** MCP access token from x-mcp-access-token header (for Agent SDK) */
+	mcpAccessToken?: string;
+
 	/** Authentication method used for this session */
-	authMethod?: "api-key" | "oauth" | "none";
+	authMethod?: "oauth" | "none";
 }
 
 /**
  * Main MCP Agent class
  *
- * Supports per-user API keys via the tangoApiKey prop.
- * Users configure their API key using mcp-remote with custom headers:
+ * Gateway Model: The server acts as an authenticated gateway to the Tango API.
+ * Users must authenticate via OAuth (or MCP access token), and the server uses
+ * its centralized TANGO_API_KEY to make API requests on their behalf.
+ *
+ * Configuration:
  * {
  *   "mcpServers": {
  *     "tango": {
@@ -66,13 +75,14 @@ export interface MCPProps extends Record<string, unknown> {
  *       "args": [
  *         "-y",
  *         "mcp-remote",
- *         "https://your-worker.workers.dev/sse",
- *         "--header",
- *         "x-tango-api-key:YOUR_KEY_HERE"
+ *         "https://your-worker.workers.dev/sse"
  *       ]
  *     }
  *   }
  * }
+ *
+ * SECURITY: The Tango API key is server-managed (env.TANGO_API_KEY) and never
+ * accepted from client headers or props.
  */
 export class MCPServerAgent extends McpAgent<Env, Record<string, never>, MCPProps> {
 	server = new McpServer({
@@ -85,25 +95,43 @@ export class MCPServerAgent extends McpAgent<Env, Record<string, never>, MCPProp
 		// The McpAgent framework provides env and props through 'this' context during agent execution
 		const env = (this as unknown as { env?: Env }).env || ({} as Env);
 
-		// Detect authentication method (OAuth or API key)
-		const authInfo = detectAuthMethod(
-			this.props,
-			env as unknown as Record<string, unknown> & { TANGO_API_KEY?: string },
-		);
-
-		// Get the appropriate auth token (OAuth or API key)
-		const authToken = getAuthToken(authInfo);
-
-		// Log authentication method for debugging
-		console.log(`[Tango MCP] Auth method: ${authInfo.method}`);
-		if (authInfo.userEmail || authInfo.userName) {
-			console.log(`[Tango MCP] User: ${getUserIdentifier(authInfo)}`);
+		// STEP 1: Validate environment configuration at startup
+		// This ensures all required configuration is present and valid
+		try {
+			initializeEnvironment(env);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error(`[Tango MCP] Environment validation failed: ${errorMessage}`);
+			// Re-throw to prevent server from starting with invalid config
+			throw new Error(`Environment configuration error: ${errorMessage}`);
 		}
+
+		// STEP 2: GATEWAY MODEL: Validate authentication
+		// Every request must be authenticated (OAuth OR MCP token)
+		let validatedUser: string;
+		try {
+			const authResult = await validateAuthentication(this.props, env);
+			validatedUser = getUserIdentifierFromAuth(authResult);
+			console.log(`[Tango MCP] Authentication successful: ${authResult.method}`);
+			console.log(`[Tango MCP] User: ${validatedUser}`);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error(`[Tango MCP] Authentication failed: ${errorMessage}`);
+			throw new Error(errorMessage);
+		}
+
+		// Detect authentication method (OAuth for user identity)
+		const authInfo = detectAuthMethod(this.props, env);
+
+		// SECURITY: Always use server's API key from environment (never from client props)
+		// The server acts as a gateway - clients authenticate themselves, but the server
+		// uses its own API key to make requests to Tango API on their behalf
+		const authToken = env.TANGO_API_KEY;
 
 		// Initialize cache manager
 		const cache = env.TANGO_CACHE ? createCacheManager(env) : undefined;
 
-		// Register all tools with unified auth token (OAuth or API key)
+		// Register all tools with server's API key (from env.TANGO_API_KEY only)
 		registerHealthTool(this.server);
 		registerSearchContractsTool(this.server, env, cache, authToken);
 		registerSearchIDVsTool(this.server, env, cache, authToken);

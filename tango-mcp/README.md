@@ -189,6 +189,66 @@ Get comprehensive company intelligence including AI summary and news.
 
 Check server health and connectivity.
 
+## Authentication
+
+This MCP server uses a **Gateway Model** for secure authentication. Users authenticate themselves to the server, and the server makes all Tango API requests on their behalf using a centralized API key.
+
+### For Claude Code & Claude Web Users (OAuth)
+
+The easiest way to use this server is with OAuth authentication:
+
+1. **Add the MCP server** in Claude Code or Claude Web
+2. **Authenticate with your @agile6.com Google account** when prompted
+3. **Start using the tools** immediately
+
+**Requirements**:
+- You must have an @agile6.com Google account
+- OAuth authentication is automatic in Claude Code and Claude Web
+- No API key configuration needed
+
+**First-time setup**: When you first connect, you'll be redirected to Google to sign in. After authentication, you can immediately start using all tools.
+
+### For Agent SDK & Custom Applications (MCP Access Tokens)
+
+The Agent SDK does not support OAuth, so you must use an MCP access token:
+
+1. **Request a token** from your Tango MCP administrator
+2. **Configure your `.mcp.json`**:
+   ```json
+   {
+     "mcpServers": {
+       "tango": {
+         "type": "sse",
+         "url": "https://your-worker.workers.dev/sse",
+         "headers": {
+           "x-mcp-access-token": "${MCP_ACCESS_TOKEN}"
+         }
+       }
+     }
+   }
+   ```
+3. **Set environment variable**:
+   ```bash
+   export MCP_ACCESS_TOKEN=mcp_v1_your_token_here
+   ```
+
+**Security Note**: Treat your MCP access token like a password. Do NOT share it or commit it to version control.
+
+### Authentication Troubleshooting
+
+**Error: "Unauthorized: Authentication required"**
+- **OAuth users**: You need to authenticate. Click the OAuth prompt in Claude.
+- **Agent SDK users**: Your MCP access token is missing or invalid. Check your configuration.
+
+**Error: "Only @agile6.com accounts are allowed"**
+- You must use an Agile Six Google account (@agile6.com email)
+- Personal Gmail accounts are not permitted
+
+**Error: "Token has been revoked"**
+- Your MCP access token has been revoked. Request a new token from your administrator.
+
+**Need help?** Contact your Tango MCP administrator or check the [Authentication Guide](./AUTHENTICATION.md) for detailed documentation.
+
 ## Installation
 
 ### Prerequisites
@@ -196,7 +256,7 @@ Check server health and connectivity.
 - Node.js 18+ or compatible runtime
 - Cloudflare Workers account
 - Wrangler CLI: `npm install -g wrangler`
-- Tango API key ([Get one free at tango.makegov.com](https://tango.makegov.com))
+- Tango API key ([Get one free at tango.makegov.com](https://tango.makegov.com)) - **Server operators only**
 - Claude Desktop or another MCP-compatible client
 
 ### Setup
@@ -331,16 +391,9 @@ View metrics in the Cloudflare dashboard under Workers > Analytics.
 
 ## Using with Claude Desktop
 
-The Tango MCP Server supports **per-user API keys**, allowing each user to configure their own Tango API key in Claude Desktop. This ensures each user gets their own API quota (100 requests/day on the free tier).
+### Quick Start (OAuth - Recommended)
 
-### Configuration Steps
-
-1. **Get your Tango API key:**
-   - Visit [https://tango.makegov.com](https://tango.makegov.com)
-   - Sign up for a free account
-   - Copy your API key from the dashboard
-
-2. **Open Claude Desktop configuration:**
+1. **Open Claude Desktop configuration:**
    - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -349,28 +402,28 @@ The Tango MCP Server supports **per-user API keys**, allowing each user to confi
    - Navigate to "Developer" tab
    - Click "Edit Config"
 
-3. **Add the Tango MCP Server:**
+2. **Add the Tango MCP Server:**
    ```json
    {
      "mcpServers": {
        "tango-mcp": {
-         "url": "https://your-worker-name.your-account.workers.dev/sse",
-         "headers": {
-           "x-tango-api-key": "YOUR_TANGO_API_KEY_HERE"
-         }
+         "url": "https://your-worker-name.your-account.workers.dev/sse"
        }
      }
    }
    ```
 
-   Replace:
-   - `your-worker-name.your-account.workers.dev` with your actual Cloudflare Worker URL
-   - `YOUR_TANGO_API_KEY_HERE` with your actual Tango API key
+   Replace `your-worker-name.your-account.workers.dev` with your actual Cloudflare Worker URL.
 
-4. **Restart Claude Desktop**
+3. **Restart Claude Desktop**
    - Completely quit Claude Desktop (not just close the window)
    - Reopen Claude Desktop
    - The Tango MCP Server should now be available
+
+4. **Authenticate**
+   - When you first use a tool, you'll be prompted to authenticate
+   - Sign in with your @agile6.com Google account
+   - Grant permissions when requested
 
 ### Verify Connection
 
@@ -379,65 +432,54 @@ In Claude Desktop, ask:
 Search for IT service contracts awarded by the Department of Defense
 ```
 
-Claude should use the `search_tango_contracts` tool to fetch results using your API key.
-
-### Alternative: Shared API Key
-
-If you prefer to deploy with a single shared API key (not recommended for production):
-
-```bash
-wrangler secret put TANGO_API_KEY
-# Enter your Tango API key when prompted
-```
-
-Then users can connect without the `headers` configuration:
-```json
-{
-  "mcpServers": {
-    "tango-mcp": {
-      "url": "https://your-worker.workers.dev/sse"
-    }
-  }
-}
-```
-
-**Note**: With a shared key, all users share the same API quota.
+Claude should use the `search_tango_contracts` tool to fetch results.
 
 ## Configuration
 
 ### Environment Variables
 
+**Required for Server Operation:**
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TANGO_API_KEY` | No* | - | Tango API authentication key (secret). *Optional if users provide keys via `x-tango-api-key` header |
+| `TANGO_API_KEY` | **Yes** | - | Server's Tango API key (secret) - used for all API calls |
+| `TANGO_CACHE` | **Yes** | - | KV namespace binding for caching |
+| `OAUTH_KV` | **Yes** | - | KV namespace for OAuth state and MCP tokens |
+
+**Required for OAuth (Recommended):**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GOOGLE_CLIENT_ID_DESKTOP` | Yes | - | Google OAuth client ID for Claude Code |
+| `GOOGLE_CLIENT_SECRET_DESKTOP` | Yes | - | Google OAuth client secret for Claude Code |
+| `GOOGLE_CLIENT_ID_WEB` | Yes | - | Google OAuth client ID for Claude Web |
+| `GOOGLE_CLIENT_SECRET_WEB` | Yes | - | Google OAuth client secret for Claude Web |
+| `COOKIE_ENCRYPTION_KEY` | Yes | - | 32+ character key for session encryption |
+| `HOSTED_DOMAIN` | Recommended | - | Domain restriction (e.g., "agile6.com") |
+
+**Optional:**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
 | `TANGO_API_BASE_URL` | No | `https://tango.makegov.com/api` | Tango API base URL |
-| `TANGO_CACHE` | Yes | - | KV namespace binding for caching |
+| `REQUIRE_AUTHENTICATION` | No | `"true"` | Enforce authentication (set to "false" only for dev) |
+| `MCP_TOKEN_EXPIRY_DAYS` | No | `"365"` | MCP token expiration in days |
 
-### Per-User API Keys
+### Gateway Model Security
 
-Users can provide their own API keys via the `x-tango-api-key` HTTP header. This is configured in Claude Desktop's `claude_desktop_config.json`:
+This server uses a **Gateway Model** for security:
 
-```json
-{
-  "mcpServers": {
-    "tango-mcp": {
-      "url": "https://your-worker.workers.dev/sse",
-      "headers": {
-        "x-tango-api-key": "user-specific-api-key"
-      }
-    }
-  }
-}
-```
+1. **Users authenticate** to the MCP server (via OAuth or MCP access token)
+2. **Server validates** user authentication and identity
+3. **Server makes API calls** using its centralized `TANGO_API_KEY`
+4. **Users never see** or configure the Tango API key
 
-**Benefits of per-user API keys:**
-- Each user gets their own 100 requests/day quota
-- No shared rate limit concerns
-- Better security (users manage their own credentials)
-- Individual usage tracking
-
-**Fallback behavior:**
-If no `x-tango-api-key` header is provided, the server falls back to the `TANGO_API_KEY` environment variable.
+**Benefits:**
+- Centralized API key management
+- Individual user authentication and tracking
+- Domain-restricted access (@agile6.com only)
+- Easier key rotation and revocation
+- Better security audit trail
 
 ### KV Namespace
 
@@ -557,28 +599,20 @@ All tools return responses in this format:
 
 ### Common Issues
 
-**Issue: Missing API Key Error**
-```
-Error: MISSING_API_KEY
-```
-Solution: Either configure your personal API key in Claude Desktop:
-```json
-{
-  "mcpServers": {
-    "tango-mcp": {
-      "url": "https://your-worker.workers.dev/sse",
-      "headers": {
-        "x-tango-api-key": "YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
+**Issue: "Unauthorized: Authentication required"**
+- **Cause**: No valid authentication found
+- **Solution**:
+  - OAuth users: Sign in with your @agile6.com Google account
+  - Agent SDK users: Add `x-mcp-access-token` header with your MCP access token
+  - Check that your authentication hasn't expired
 
-Or set a shared API key secret (not recommended):
-```bash
-wrangler secret put TANGO_API_KEY
-```
+**Issue: "Only @agile6.com accounts are allowed"**
+- **Cause**: Attempting to authenticate with non-Agile Six email
+- **Solution**: Use your Agile Six Google account (@agile6.com email address)
+
+**Issue: "Token has been revoked"**
+- **Cause**: Your MCP access token has been revoked by an administrator
+- **Solution**: Request a new token from your Tango MCP administrator
 
 **Issue: Cache Not Working**
 ```
