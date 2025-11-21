@@ -29,6 +29,7 @@ import { GoogleHandler } from "./auth/google-handler.js";
 import type { Props as OAuthProps } from "./auth/utils.js";
 import { detectAuthMethod, getAuthToken, getUserIdentifier } from "./auth/auth-detector.js";
 import { validateAuthentication, getUserIdentifierFromAuth } from "./auth/validate-authentication.js";
+import { withMcpHeaderExtraction } from "./middleware/mcp-header-extractor.js";
 // </mcp-auth:imports>
 // <mcp-bindings:imports>
 // Binding helper imports will be added here by add binding command
@@ -37,7 +38,7 @@ import { initializeEnvironment, validateEnvironment } from "./config/validate-en
 
 /**
  * Props interface for per-user configuration
- * Supports OAuth authentication only
+ * Supports dual authentication: OAuth (for users) and MCP tokens (for Agent SDK)
  *
  * SECURITY: The Tango API key MUST only come from env.TANGO_API_KEY (server environment)
  * and should NEVER be provided by clients through headers or props.
@@ -53,11 +54,14 @@ export interface MCPProps extends Record<string, unknown> {
 	/** OAuth access token (from Google OAuth flow) */
 	accessToken?: string;
 
-	/** MCP access token from x-mcp-access-token header (for Agent SDK) */
+	/**
+	 * MCP access token from x-mcp-access-token header (for Agent SDK)
+	 * Extracted by mcp-header-extractor middleware
+	 */
 	mcpAccessToken?: string;
 
 	/** Authentication method used for this session */
-	authMethod?: "oauth" | "none";
+	authMethod?: "oauth" | "mcp-token" | "none";
 }
 
 /**
@@ -242,9 +246,16 @@ const staticRoutesHandler = {
 };
 
 /**
- * OAuth Provider export - Full Google OAuth integration
+ * OAuth Provider export - Full Google OAuth integration with MCP token support
  *
- * This wraps the MCP server with Google OAuth authentication.
+ * This wraps the MCP server with dual authentication:
+ * 1. OAuth (Google) for user authentication in Claude Web/Code
+ * 2. MCP tokens for programmatic Agent SDK access
+ *
+ * The MCP header extraction middleware (withMcpHeaderExtraction) extracts
+ * x-mcp-access-token headers and injects them into props before the Agent
+ * SDK receives the request. This enables MCP token authentication to work
+ * alongside OAuth without conflicts.
  *
  * OAuth Flow:
  * 1. Client discovers OAuth endpoints via /.well-known/oauth-authorization-server
@@ -253,6 +264,12 @@ const staticRoutesHandler = {
  * 4. After authentication, user props (name, email, accessToken) are encrypted and passed to MCP agent
  * 5. Client accesses /sse or /mcp with authenticated credentials
  *
+ * MCP Token Flow:
+ * 1. Middleware extracts x-mcp-access-token from request header
+ * 2. Token is injected into ctx.props.mcpAccessToken
+ * 3. Agent validates token in validateAuthentication()
+ * 4. Client accesses /sse or /mcp with MCP token authentication
+ *
  * Environment variables required:
  * - GOOGLE_CLIENT_ID: Google OAuth client ID
  * - GOOGLE_CLIENT_SECRET: Google OAuth client secret
@@ -260,7 +277,7 @@ const staticRoutesHandler = {
  * - COOKIE_ENCRYPTION_KEY: Key for encrypting session cookies
  * - HOSTED_DOMAIN (optional): Restrict to specific Google Workspace domain
  */
-export default new OAuthProvider({
+const oauthProvider = new OAuthProvider({
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
 	tokenEndpoint: "/token",
@@ -270,3 +287,7 @@ export default new OAuthProvider({
 	},
 	defaultHandler: GoogleHandler as any,
 });
+
+// Wrap with MCP header extraction middleware
+// This ensures x-mcp-access-token headers are extracted and available in props
+export default withMcpHeaderExtraction(oauthProvider);
