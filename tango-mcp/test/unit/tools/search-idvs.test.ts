@@ -598,4 +598,81 @@ describe("search_tango_idvs tool", () => {
 			expect(result.content[0].text).toContain("MISSING_API_KEY");
 		});
 	});
+
+	describe("shape parameter", () => {
+		it("should pass through shape parameter to API", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchIDVs = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchIDVs: mockSearchIDVs,
+			}));
+
+			registerSearchIDVsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "GSA",
+				limit: 5,
+				shape: "key,piid,description,obligated",
+			});
+
+			const callParams = mockSearchIDVs.mock.calls[0][0];
+			expect(callParams.shape).toBe("key,piid,description,obligated");
+		});
+
+		it("should pass through wildcard shape syntax to API", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchIDVs = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchIDVs: mockSearchIDVs,
+			}));
+
+			registerSearchIDVsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "GSA",
+				limit: 5,
+				shape: "key,recipient(*),obligated",
+			});
+
+			const callParams = mockSearchIDVs.mock.calls[0][0];
+			expect(callParams.shape).toBe("key,recipient(*),obligated");
+		});
+
+		it("should work without shape parameter (backward compatibility)", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchIDVs = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchIDVs: mockSearchIDVs,
+			}));
+
+			registerSearchIDVsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "GSA",
+				limit: 5,
+			});
+
+			const callParams = mockSearchIDVs.mock.calls[0][0];
+			expect(callParams.shape).toBeUndefined();
+		});
+
+	});
 });

@@ -195,6 +195,16 @@ export function registerSearchContractsTool(
 				.describe(
 					"Pagination cursor for fetching next page. Obtained from previous response's next_cursor field. More efficient than offset-based pagination for large datasets.",
 				),
+			shape: z
+				.string()
+				.optional()
+				.describe(
+					"Reduce payload size 60-85%. Format: comma-separated field names. " +
+					"Basic: 'key,piid,description,obligated' | " +
+					"Nested: 'key,recipient(*),awarding_office(*),obligated' | " +
+					"Scalar fields: key,piid,description,award_date,fiscal_year,obligated,total_contract_value,naics_code,psc_code,set_aside | " +
+					"Nested fields: recipient(*),awarding_office(*),funding_office(*),period_of_performance(*),place_of_performance(*)"
+				),
 		},
 		async (args) => {
 			const startTime = Date.now();
@@ -410,6 +420,11 @@ export function registerSearchContractsTool(
 				// Add cursor parameter if provided
 				if (sanitized.cursor) {
 					params.cursor = sanitized.cursor;
+				}
+
+				// Add shape parameter if provided
+				if (sanitized.shape) {
+					params.shape = sanitized.shape;
 				}
 
 				// Call Tango API with caching
