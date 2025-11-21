@@ -199,11 +199,17 @@ export function registerSearchContractsTool(
 				.string()
 				.optional()
 				.describe(
-					"Reduce payload size 60-85%. Format: comma-separated field names. " +
-					"Basic: 'key,piid,description,obligated' | " +
-					"Nested: 'key,recipient(*),awarding_office(*),obligated' | " +
-					"Scalar fields: key,piid,description,award_date,fiscal_year,obligated,total_contract_value,naics_code,psc_code,set_aside | " +
-					"Nested fields: recipient(*),awarding_office(*),funding_office(*),period_of_performance(*),place_of_performance(*)"
+					"Reduce payload 60-85% by requesting only specific fields. Format: comma-separated field names. " +
+					"EXAMPLES: 'key,piid,description' | 'key,recipient(*),obligated' | 'key,award_date,naics_code'. " +
+					"SCALAR FIELDS: key, piid, description, title, award_date, date_signed, fiscal_year, obligated, " +
+					"total_contract_value, base_and_exercised_options_value, naics_code, naics_description, psc_code, psc_description, " +
+					"set_aside, solicitation_identifier, contract_status, status, vendor_name, vendor_uei, vendor_duns, " +
+					"type_of_set_aside, performance_based_service_acquisition, number_of_actions, solicitation_date. " +
+					"NESTED OBJECTS (use wildcard): recipient(*), awarding_office(*), funding_office(*), " +
+					"place_of_performance(*), parent_award(*), contract_pricing_type(*), legislative_mandates(*), " +
+					"contract_bundling(*), consolidated_contract(*). " +
+					"TIPS: Use wildcard recipient(*) to expand all subfields. Mix scalars and nested. " +
+					"Invalid fields return API error with details."
 				),
 		},
 		async (args) => {
