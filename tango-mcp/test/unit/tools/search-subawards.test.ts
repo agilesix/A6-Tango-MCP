@@ -312,4 +312,181 @@ describe("search_tango_subawards tool", () => {
 			expect(dataPage2.pagination.has_previous).toBe(true);
 		});
 	});
+
+	describe("shape parameter", () => {
+		it("should pass through shape parameter to API", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "key,award_key,recipient_name,amount",
+			});
+
+			const callParams = mockSearchSubawards.mock.calls[0][0];
+			expect(callParams.shape).toBe("key,award_key,recipient_name,amount");
+		});
+
+		it("should pass through wildcard shape syntax to API", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "key,prime_recipient(*),sub_recipient(*)",
+			});
+
+			const callParams = mockSearchSubawards.mock.calls[0][0];
+			expect(callParams.shape).toBe("key,prime_recipient(*),sub_recipient(*)");
+		});
+
+		it("should work without shape parameter (backward compatibility)", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+			});
+
+			const callParams = mockSearchSubawards.mock.calls[0][0];
+			expect(callParams.shape).toBeUndefined();
+		});
+
+		it("should include shape parameter in cache key when present", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			const mockCache = {
+				get: vi.fn().mockResolvedValue(null),
+				set: vi.fn().mockResolvedValue(undefined),
+			} as any;
+
+			registerSearchSubawardsTool(mockServer, mockEnv, mockCache);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "key,award_key,amount",
+			});
+
+			// Verify cache.get was called with a key containing shape
+			expect(mockCache.get).toHaveBeenCalled();
+			const cacheKey = mockCache.get.mock.calls[0][0];
+			expect(cacheKey).toContain("shape");
+		});
+
+		it("should differentiate cache keys with different shapes", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			const mockCache = {
+				get: vi.fn().mockResolvedValue(null),
+				set: vi.fn().mockResolvedValue(undefined),
+			} as any;
+
+			registerSearchSubawardsTool(mockServer, mockEnv, mockCache);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			// Call with first shape
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "key,award_key",
+			});
+
+			const cacheKey1 = mockCache.get.mock.calls[0][0];
+
+			// Call with different shape
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "key,prime_recipient(*)",
+			});
+
+			const cacheKey2 = mockCache.get.mock.calls[1][0];
+
+			// Verify cache keys are different
+			expect(cacheKey1).not.toBe(cacheKey2);
+		});
+
+		it("should pass empty shape parameter as-is", async () => {
+			const { TangoApiClient } = await import("@/api/tango-client");
+			const mockSearchSubawards = vi.fn().mockResolvedValue({
+				success: true,
+				data: { results: [], total: 0 },
+				status: 200,
+			});
+
+			(TangoApiClient as any).mockImplementation(() => ({
+				searchSubawards: mockSearchSubawards,
+			}));
+
+			registerSearchSubawardsTool(mockServer, mockEnv);
+			const handler = (mockServer.tool as any).mock.calls[0][3];
+
+			await handler({
+				awarding_agency: "VA",
+				limit: 10,
+				shape: "",
+			});
+
+			const callParams = mockSearchSubawards.mock.calls[0][0];
+			// Empty string should be passed through
+			expect(callParams).toHaveProperty("shape");
+			expect(callParams.shape).toBe("");
+		});
+	});
 });
