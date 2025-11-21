@@ -75,16 +75,6 @@ export function registerSearchSubawardsTool(
 			page: z.number().int().min(1).optional().describe(
 				"Page number for offset-based pagination (starts at 1). Use with limit to paginate through results."
 			),
-			shape: z
-				.string()
-				.optional()
-				.describe(
-					"Reduce payload size 60-85%. Format: comma-separated field names. " +
-					"Basic: 'key,piid,description,obligated' | " +
-					"Nested: 'key,recipient(*),awarding_office(*),obligated' | " +
-					"Scalar fields: key,piid,description,award_date,fiscal_year,obligated,total_contract_value,naics_code,psc_code,set_aside | " +
-					"Nested fields: recipient(*),awarding_office(*),funding_office(*),period_of_performance(*),place_of_performance(*)"
-				),
 		},
 		async (args) => {
 			const startTime = Date.now();
@@ -146,9 +136,6 @@ export function registerSearchSubawardsTool(
 				params.limit = sanitized.limit || 25;
 				if (sanitized.page) params.page = sanitized.page;
 
-				// Add shape parameter if provided
-				if (sanitized.shape) params.shape = sanitized.shape;
-
 				// Call Tango API with caching
 				const client = new TangoApiClient(env, cache);
 				const response = await client.searchSubawards(params, apiKey);
@@ -176,12 +163,8 @@ export function registerSearchSubawardsTool(
 					};
 				}
 
-				// When shape parameter is provided, return raw API response (no normalization)
-				// This preserves the shape parameter's payload reduction (60-85%)
-				const results = response.data.results || [];
-				const normalizedSubawards = sanitized.shape
-					? results
-					: results.map(normalizeSubaward);
+				// Normalize subaward data
+				const normalizedSubawards = (response.data.results || []).map(normalizeSubaward);
 
 				// Extract pagination info
 				const nextPage = extractPageFromUrl(response.data.next);
