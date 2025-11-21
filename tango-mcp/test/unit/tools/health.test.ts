@@ -2,76 +2,75 @@
  * Unit Tests for Health Check Tool
  */
 
-import { describe, it, expect } from "vitest";
-import {
-	createMockServer,
-	expectToolSuccess,
-	parseToolResponse,
-} from "../../utils/test-utils";
+import { describe, it, expect, vi } from "vitest";
 import { registerHealthTool } from "@/tools/health";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 describe("Health Check Tool", () => {
-	it("should return healthy status", async () => {
-		const server = createMockServer();
-		registerHealthTool(server);
+	it("should register with correct name and no parameters", () => {
+		const mockServer = {
+			tool: vi.fn(),
+		} as unknown as McpServer;
 
-		const response = await expectToolSuccess(server, "health", {});
-		const data = parseToolResponse<{
-			status: string;
-			timestamp: string;
-			uptime: number | string;
-			server: string;
-			version: string;
-		}>(response);
+		registerHealthTool(mockServer);
 
+		expect(mockServer.tool).toHaveBeenCalledWith(
+			"health",
+			expect.stringContaining("health status"),
+			{}, // No parameters
+			expect.any(Function)
+		);
+	});
+
+	it("should return healthy status with all required fields", async () => {
+		const mockServer = {
+			tool: vi.fn(),
+		} as unknown as McpServer;
+
+		registerHealthTool(mockServer);
+
+		// Get the handler function
+		const handler = (mockServer.tool as any).mock.calls[0][3];
+		const response = await handler({});
+
+		expect(response.content).toHaveLength(1);
+		expect(response.content[0].type).toBe("text");
+
+		const data = JSON.parse(response.content[0].text);
 		expect(data.status).toBe("healthy");
 		expect(data.server).toBe("tango-mcp");
 		expect(data.version).toBe("1.0.0");
+		expect(data.timestamp).toBeDefined();
+		expect(data.uptime).toBeDefined();
 	});
 
-	it("should include timestamp", async () => {
-		const server = createMockServer();
-		registerHealthTool(server);
+	it("should return valid ISO 8601 timestamp", async () => {
+		const mockServer = {
+			tool: vi.fn(),
+		} as unknown as McpServer;
 
-		const response = await expectToolSuccess(server, "health", {});
-		const data = parseToolResponse<{ timestamp: string }>(response);
+		registerHealthTool(mockServer);
 
-		expect(data.timestamp).toBeDefined();
-		// Verify it's a valid ISO 8601 timestamp
+		const handler = (mockServer.tool as any).mock.calls[0][3];
+		const response = await handler({});
+
+		const data = JSON.parse(response.content[0].text);
 		expect(new Date(data.timestamp).toISOString()).toBe(data.timestamp);
 	});
 
-	it("should include uptime information", async () => {
-		const server = createMockServer();
-		registerHealthTool(server);
+	it("should include uptime as number or N/A", async () => {
+		const mockServer = {
+			tool: vi.fn(),
+		} as unknown as McpServer;
 
-		const response = await expectToolSuccess(server, "health", {});
-		const data = parseToolResponse<{ uptime: number | string }>(response);
+		registerHealthTool(mockServer);
 
-		expect(data.uptime).toBeDefined();
-		// Uptime is either a number (seconds) or "N/A" in Workers
+		const handler = (mockServer.tool as any).mock.calls[0][3];
+		const response = await handler({});
+
+		const data = JSON.parse(response.content[0].text);
 		expect(
-			typeof data.uptime === "number" || data.uptime === "N/A",
+			typeof data.uptime === "number" || data.uptime === "N/A"
 		).toBe(true);
-	});
-
-	it("should not require any parameters", async () => {
-		const server = createMockServer();
-		registerHealthTool(server);
-
-		// Should work with empty params
-		const response = await expectToolSuccess(server, "health", {});
-		expect(response).toBeDefined();
-		expect(response.content).toHaveLength(1);
-	});
-
-	it("should return valid JSON", async () => {
-		const server = createMockServer();
-		registerHealthTool(server);
-
-		const response = await expectToolSuccess(server, "health", {});
-
-		// parseToolResponse will throw if JSON is invalid
-		expect(() => parseToolResponse(response)).not.toThrow();
 	});
 });
