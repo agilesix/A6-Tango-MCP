@@ -148,6 +148,16 @@ export function registerSearchIDVsTool(
 				.describe(
 					"Pagination cursor from previous response's next_cursor field",
 				),
+			shape: z
+				.string()
+				.optional()
+				.describe(
+					"Reduce payload size 60-85%. Format: comma-separated field names. " +
+					"Basic: 'key,piid,description,obligated' | " +
+					"Nested: 'key,recipient(*),awarding_office(*),obligated' | " +
+					"Scalar fields: key,piid,description,award_date,fiscal_year,obligated,total_contract_value,naics_code,psc_code,set_aside | " +
+					"Nested fields: recipient(*),awarding_office(*),funding_office(*),period_of_performance(*),place_of_performance(*)"
+				),
 			ordering: z
 				.string()
 				.optional()
@@ -303,6 +313,7 @@ export function registerSearchIDVsTool(
 				// Pagination & sorting
 				params.limit = sanitized.limit || 10;
 				if (sanitized.cursor) params.cursor = sanitized.cursor;
+				if (sanitized.shape) params.shape = sanitized.shape;
 				if (sanitized.ordering) {
 					const validationResult = validateIDVOrdering(sanitized.ordering);
 					if (validationResult.valid) {
