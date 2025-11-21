@@ -555,7 +555,7 @@ describe("search_tango_contracts tool", () => {
       expect(callParams.shape).toBeUndefined();
     });
 
-    it("should include shape parameter in cache key when present", async () => {
+    it("should pass shape parameter to API when present", async () => {
       const { TangoApiClient } = await import("@/api/tango-client");
       const mockSearchContracts = vi.fn().mockResolvedValue({
         success: true,
@@ -567,12 +567,7 @@ describe("search_tango_contracts tool", () => {
         searchContracts: mockSearchContracts,
       }));
 
-      const mockCache = {
-        get: vi.fn().mockResolvedValue(null),
-        set: vi.fn().mockResolvedValue(undefined),
-      } as any;
-
-      registerSearchContractsTool(mockServer, mockEnv, mockCache);
+      registerSearchContractsTool(mockServer, mockEnv);
       const handler = (mockServer.tool as any).mock.calls[0][3];
 
       await handler({
@@ -581,13 +576,13 @@ describe("search_tango_contracts tool", () => {
         shape: "key,piid,obligated",
       });
 
-      // Verify cache.get was called with a key containing shape
-      expect(mockCache.get).toHaveBeenCalled();
-      const cacheKey = mockCache.get.mock.calls[0][0];
-      expect(cacheKey).toContain("shape");
+      // Verify shape was passed to API
+      const callParams = mockSearchContracts.mock.calls[0][0];
+      expect(callParams).toHaveProperty("shape");
+      expect(callParams.shape).toBe("key,piid,obligated");
     });
 
-    it("should differentiate cache keys with different shapes", async () => {
+    it("should pass different shape values to API", async () => {
       const { TangoApiClient } = await import("@/api/tango-client");
       const mockSearchContracts = vi.fn().mockResolvedValue({
         success: true,
@@ -599,12 +594,7 @@ describe("search_tango_contracts tool", () => {
         searchContracts: mockSearchContracts,
       }));
 
-      const mockCache = {
-        get: vi.fn().mockResolvedValue(null),
-        set: vi.fn().mockResolvedValue(undefined),
-      } as any;
-
-      registerSearchContractsTool(mockServer, mockEnv, mockCache);
+      registerSearchContractsTool(mockServer, mockEnv);
       const handler = (mockServer.tool as any).mock.calls[0][3];
 
       // Call with first shape
@@ -614,7 +604,8 @@ describe("search_tango_contracts tool", () => {
         shape: "key,piid",
       });
 
-      const cacheKey1 = mockCache.get.mock.calls[0][0];
+      const callParams1 = mockSearchContracts.mock.calls[0][0];
+      expect(callParams1.shape).toBe("key,piid");
 
       // Call with different shape
       await handler({
@@ -623,13 +614,14 @@ describe("search_tango_contracts tool", () => {
         shape: "key,recipient(*)",
       });
 
-      const cacheKey2 = mockCache.get.mock.calls[1][0];
+      const callParams2 = mockSearchContracts.mock.calls[1][0];
+      expect(callParams2.shape).toBe("key,recipient(*)");
 
-      // Verify cache keys are different
-      expect(cacheKey1).not.toBe(cacheKey2);
+      // Verify shapes are different
+      expect(callParams1.shape).not.toBe(callParams2.shape);
     });
 
-    it("should pass empty shape parameter as-is", async () => {
+    it("should omit shape parameter when empty", async () => {
       const { TangoApiClient } = await import("@/api/tango-client");
       const mockSearchContracts = vi.fn().mockResolvedValue({
         success: true,
@@ -651,9 +643,8 @@ describe("search_tango_contracts tool", () => {
       });
 
       const callParams = mockSearchContracts.mock.calls[0][0];
-      // Empty string should be passed through
-      expect(callParams).toHaveProperty("shape");
-      expect(callParams.shape).toBe("");
+      // Empty string should be filtered out (not passed to API)
+      expect(callParams).not.toHaveProperty("shape");
     });
   });
 });
