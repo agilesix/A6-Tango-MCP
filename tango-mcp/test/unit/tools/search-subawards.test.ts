@@ -38,7 +38,7 @@ describe("search_tango_subawards tool", () => {
 			registerSearchSubawardsTool(mockServer, mockEnv);
 
 			expect(mockServer.tool).toHaveBeenCalledWith(
-				"search_tango_subawards",
+				"search_subawards",
 				expect.stringContaining("FSRS"),
 				expect.any(Object),
 				expect.any(Function),

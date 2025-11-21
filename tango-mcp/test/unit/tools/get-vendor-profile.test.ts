@@ -39,7 +39,7 @@ describe("get_tango_vendor_profile tool", () => {
       registerGetVendorProfileTool(mockServer, mockEnv);
 
       expect(mockServer.tool).toHaveBeenCalledWith(
-        "get_tango_vendor_profile",
+        "get_vendor_profile",
         expect.stringContaining("SAM.gov"),
         expect.any(Object),
         expect.any(Function)

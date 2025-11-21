@@ -22,7 +22,7 @@ describe("get_tango_company_intelligence tool", () => {
 	it("should register the tool", () => {
 		registerGetCompanyIntelligenceTool(mockServer, mockEnv);
 		expect(mockServer.tool).toHaveBeenCalledWith(
-			"get_tango_company_intelligence",
+			"get_company_intelligence",
 			expect.any(String),
 			expect.any(Object),
 			expect.any(Function),

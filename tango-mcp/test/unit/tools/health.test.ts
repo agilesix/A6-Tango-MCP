@@ -7,8 +7,8 @@ import {
 	createMockServer,
 	expectToolSuccess,
 	parseToolResponse,
-} from "../../utils/test-utils.js";
-import { registerHealthTool } from "../../../src/tools/health.js";
+} from "../../utils/test-utils";
+import { registerHealthTool } from "@/tools/health";
 
 describe("Health Check Tool", () => {
 	it("should return healthy status", async () => {

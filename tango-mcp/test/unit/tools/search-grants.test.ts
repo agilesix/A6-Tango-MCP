@@ -40,7 +40,7 @@ describe("search_tango_grants tool", () => {
       registerSearchGrantsTool(mockServer, mockEnv);
 
       expect(mockServer.tool).toHaveBeenCalledWith(
-        "search_tango_grants",
+        "search_grants",
         expect.stringContaining("Grants.gov"),
         expect.any(Object),
         expect.any(Function)

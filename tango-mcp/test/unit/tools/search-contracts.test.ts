@@ -43,7 +43,7 @@ describe("search_tango_contracts tool", () => {
       registerSearchContractsTool(mockServer, mockEnv);
 
       expect(mockServer.tool).toHaveBeenCalledWith(
-        "search_tango_contracts",
+        "search_contracts",
         expect.stringContaining("federal contract awards"),
         expect.any(Object),
         expect.any(Function)

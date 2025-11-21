@@ -48,7 +48,7 @@ describe("search_tango_idvs tool", () => {
 			registerSearchIDVsTool(mockServer, mockEnv);
 
 			expect(mockServer.tool).toHaveBeenCalledWith(
-				"search_tango_idvs",
+				"search_idvs",
 				expect.stringContaining("Indefinite Delivery Vehicles"),
 				expect.any(Object),
 				expect.any(Function),

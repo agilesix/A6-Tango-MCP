@@ -31,7 +31,7 @@ describe("get_tango_spending_summary tool", () => {
     registerGetSpendingSummaryTool(mockServer, mockEnv);
 
     expect(mockServer.tool).toHaveBeenCalledWith(
-      "get_tango_spending_summary",
+      "get_spending_summary",
       expect.stringContaining("aggregated spending analytics"),
       expect.any(Object),
       expect.any(Function)

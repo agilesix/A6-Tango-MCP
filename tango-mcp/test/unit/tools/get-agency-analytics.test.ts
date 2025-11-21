@@ -31,7 +31,7 @@ describe("get_tango_agency_analytics tool", () => {
     registerGetAgencyAnalyticsTool(mockServer, mockEnv);
 
     expect(mockServer.tool).toHaveBeenCalledWith(
-      "get_tango_agency_analytics",
+      "get_agency_analytics",
       expect.stringContaining("spending analytics for a specific federal agency"),
       expect.any(Object),
       expect.any(Function)
