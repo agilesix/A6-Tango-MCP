@@ -101,7 +101,7 @@ export class AuditLogger {
 			tokenId?: string;
 		},
 		request: Request,
-		errorMessage?: string
+		errorMessage?: string,
 	): Promise<void> {
 		await this.log({
 			timestamp: new Date().toISOString(),
@@ -111,7 +111,9 @@ export class AuditLogger {
 			severity: success ? "info" : "warning",
 			user_email: userInfo.email,
 			user_name: userInfo.name,
-			token_id: userInfo.tokenId ? this.truncateToken(userInfo.tokenId) : undefined,
+			token_id: userInfo.tokenId
+				? this.truncateToken(userInfo.tokenId)
+				: undefined,
 			client_ip: this.getClientIP(request),
 			user_agent: request.headers.get("User-Agent") || "unknown",
 			success,
@@ -134,7 +136,7 @@ export class AuditLogger {
 		success: boolean,
 		email: string | undefined,
 		request: Request,
-		errorMessage?: string
+		errorMessage?: string,
 	): Promise<void> {
 		await this.log({
 			timestamp: new Date().toISOString(),
@@ -167,7 +169,7 @@ export class AuditLogger {
 		tokenId: string,
 		userId: string | undefined,
 		request: Request,
-		errorMessage?: string
+		errorMessage?: string,
 	): Promise<void> {
 		await this.log({
 			timestamp: new Date().toISOString(),
@@ -202,7 +204,7 @@ export class AuditLogger {
 		},
 		request: Request,
 		success: boolean,
-		errorMessage?: string
+		errorMessage?: string,
 	): Promise<void> {
 		await this.log({
 			timestamp: new Date().toISOString(),
@@ -212,7 +214,9 @@ export class AuditLogger {
 			severity: success ? "info" : "error",
 			user_email: userInfo.email,
 			user_name: userInfo.name,
-			token_id: userInfo.tokenId ? this.truncateToken(userInfo.tokenId) : undefined,
+			token_id: userInfo.tokenId
+				? this.truncateToken(userInfo.tokenId)
+				: undefined,
 			client_ip: this.getClientIP(request),
 			user_agent: request.headers.get("User-Agent") || "unknown",
 			resource_type: "tool",
@@ -234,7 +238,7 @@ export class AuditLogger {
 		eventType: string,
 		severity: AuditSeverity,
 		request: Request,
-		details: Record<string, unknown>
+		details: Record<string, unknown>,
 	): Promise<void> {
 		await this.log({
 			timestamp: new Date().toISOString(),
@@ -263,19 +267,14 @@ export class AuditLogger {
 		key: string,
 		request: Request,
 		currentCount: number,
-		limit: number
+		limit: number,
 	): Promise<void> {
-		await this.logSecurityEvent(
-			"rate_limit_exceeded",
-			"warning",
-			request,
-			{
-				limit_type: limitType,
-				rate_limit_key: this.sanitizeKey(key),
-				current_count: currentCount,
-				limit,
-			}
-		);
+		await this.logSecurityEvent("rate_limit_exceeded", "warning", request, {
+			limit_type: limitType,
+			rate_limit_key: this.sanitizeKey(key),
+			current_count: currentCount,
+			limit,
+		});
 	}
 
 	/**
@@ -291,7 +290,7 @@ export class AuditLogger {
 			request,
 			{
 				failure_reason: reason,
-			}
+			},
 		);
 	}
 
@@ -301,14 +300,9 @@ export class AuditLogger {
 	 * @param request - Request object
 	 */
 	async logCSRFFailure(request: Request): Promise<void> {
-		await this.logSecurityEvent(
-			"csrf_validation_failed",
-			"warning",
-			request,
-			{
-				failure_reason: "CSRF token mismatch",
-			}
-		);
+		await this.logSecurityEvent("csrf_validation_failed", "warning", request, {
+			failure_reason: "CSRF token mismatch",
+		});
 	}
 
 	/**
@@ -413,9 +407,9 @@ export function createAuditEntry(
 	action: string,
 	success: boolean,
 	request: Request,
-	metadata?: Record<string, unknown>
+	metadata?: Record<string, unknown>,
 ): AuditLogEntry {
-	const logger = getAuditLogger();
+	const _logger = getAuditLogger();
 	return {
 		timestamp: new Date().toISOString(),
 		event_category: category,

@@ -37,7 +37,7 @@ export function detectAuthMethod(
 	props?: MCPProps,
 	env?: Record<string, unknown> | { TANGO_API_KEY?: string },
 ): AuthInfo {
-	const hasOAuth = !!(props?.accessToken);
+	const hasOAuth = !!props?.accessToken;
 
 	// SECURITY: env.TANGO_API_KEY is extracted for compatibility but NOT used for auth
 	// The server ALWAYS uses env.TANGO_API_KEY directly, never from client props

@@ -24,7 +24,7 @@ export function sanitizeString(value: string): string {
 	// Strip control characters (ASCII 0x00-0x1F and 0x7F-0x9F)
 	// But preserve common whitespace (space, tab, newline, carriage return)
 	// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally checking for control characters
-	const stripped = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+	const stripped = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "");
 
 	// Trim leading/trailing whitespace
 	return stripped.trim();
@@ -60,17 +60,17 @@ export function sanitizeInput<T>(input: T): T {
 	}
 
 	// Handle strings
-	if (typeof input === 'string') {
+	if (typeof input === "string") {
 		return sanitizeString(input) as unknown as T;
 	}
 
 	// Handle arrays
 	if (Array.isArray(input)) {
-		return input.map(item => sanitizeInput(item)) as unknown as T;
+		return input.map((item) => sanitizeInput(item)) as unknown as T;
 	}
 
 	// Handle objects (but not Date, RegExp, etc)
-	if (typeof input === 'object' && input.constructor === Object) {
+	if (typeof input === "object" && input.constructor === Object) {
 		const sanitized: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(input)) {
 			sanitized[key] = sanitizeInput(value);
@@ -93,11 +93,11 @@ export function sanitizeInput<T>(input: T): T {
  * isPlainObject([]) // false
  * isPlainObject(new Date()) // false
  */
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(
+	value: unknown,
+): value is Record<string, unknown> {
 	return (
-		typeof value === 'object' &&
-		value !== null &&
-		value.constructor === Object
+		typeof value === "object" && value !== null && value.constructor === Object
 	);
 }
 
@@ -127,7 +127,9 @@ export function hasControlCharacters(value: string): boolean {
  * sanitizeToolArgs({ query: "  test\x00  ", limit: 10 })
  * // { query: "test", limit: 10 }
  */
-export function sanitizeToolArgs<T extends Record<string, unknown>>(args: T): T {
+export function sanitizeToolArgs<T extends Record<string, unknown>>(
+	args: T,
+): T {
 	return sanitizeInput(args);
 }
 
@@ -144,8 +146,11 @@ export function sanitizeToolArgs<T extends Record<string, unknown>>(args: T): T 
  *   return { result: args.query };
  * });
  */
-export function withSanitization<TArgs extends Record<string, unknown>, TResult>(
-	handler: (args: TArgs, env: Env) => Promise<TResult>
+export function withSanitization<
+	TArgs extends Record<string, unknown>,
+	TResult,
+>(
+	handler: (args: TArgs, env: Env) => Promise<TResult>,
 ): (args: TArgs, env: Env) => Promise<TResult> {
 	return async (args: TArgs, env: Env): Promise<TResult> => {
 		const sanitized = sanitizeToolArgs(args);

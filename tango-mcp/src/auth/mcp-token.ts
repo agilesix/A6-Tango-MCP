@@ -111,7 +111,8 @@ export interface MCPTokenValidationResult {
 // Base58 Encoding (Bitcoin alphabet)
 // ============================================================================
 
-const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const BASE58_ALPHABET =
+	"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 /**
  * Encode bytes as Base58 (Bitcoin alphabet)
@@ -135,7 +136,7 @@ function encodeBase58(bytes: Uint8Array): string {
 	// Add leading '1's for leading zero bytes
 	for (const byte of bytes) {
 		if (byte === 0) {
-			encoded = "1" + encoded;
+			encoded = `1${encoded}`;
 		} else {
 			break;
 		}
@@ -158,7 +159,9 @@ export async function hashToken(token: string): Promise<string> {
 	const data = encoder.encode(token);
 	const hashBuffer = await crypto.subtle.digest("SHA-256", data);
 	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+	const hashHex = hashArray
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	return hashHex;
 }
 
@@ -269,7 +272,8 @@ export async function generateMcpAccessToken(
 		userId,
 		description,
 		createdAt: now,
-		warning: "Save this token now. For security reasons, it will never be shown again.",
+		warning:
+			"Save this token now. For security reasons, it will never be shown again.",
 	};
 }
 
@@ -380,7 +384,10 @@ async function updateTokenUsage(
  * @param tokenHash SHA-256 hash of the token
  * @returns Token ID or undefined if not found
  */
-async function getTokenIdFromHash(env: Env, tokenHash: string): Promise<string | undefined> {
+async function getTokenIdFromHash(
+	env: Env,
+	tokenHash: string,
+): Promise<string | undefined> {
 	if (!env.OAUTH_KV) return undefined;
 
 	// List all token:id:* keys
@@ -454,7 +461,9 @@ export async function revokeMcpAccessToken(
 
 	// 7. Add to revoked list
 	const revokedListJson = await env.OAUTH_KV.get("revoked:tokens");
-	const revokedList: string[] = revokedListJson ? JSON.parse(revokedListJson) : [];
+	const revokedList: string[] = revokedListJson
+		? JSON.parse(revokedListJson)
+		: [];
 	revokedList.push(tokenId);
 	await env.OAUTH_KV.put("revoked:tokens", JSON.stringify(revokedList));
 

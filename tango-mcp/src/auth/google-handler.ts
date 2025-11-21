@@ -1,7 +1,20 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type {
+	AuthRequest,
+	OAuthHelpers,
+} from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
+import { getAuditLogger } from "../security/audit-logging.js";
+import {
+	applyRateLimit,
+	createRateLimiters,
+	getClientIP,
+} from "../security/rate-limiting.js";
 import type { Env } from "../types/env.js";
-import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
+import {
+	fetchUpstreamAuthToken,
+	getUpstreamAuthorizeUrl,
+	type Props,
+} from "./utils";
 import {
 	addApprovedClient,
 	bindStateToSession,
@@ -13,8 +26,6 @@ import {
 	validateCSRFToken,
 	validateOAuthState,
 } from "./workers-oauth-utils";
-import { createRateLimiters, getClientIP, applyRateLimit } from "../security/rate-limiting.js";
-import { getAuditLogger } from "../security/audit-logging.js";
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
 
@@ -28,7 +39,7 @@ function addSecurityHeaders(response: Response): Response {
 	// Content Security Policy - Prevent XSS attacks
 	headers.set(
 		"Content-Security-Policy",
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
 	);
 
 	// Prevent clickjacking
@@ -41,7 +52,10 @@ function addSecurityHeaders(response: Response): Response {
 	headers.set("X-XSS-Protection", "1; mode=block");
 
 	// Force HTTPS (HSTS)
-	headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+	headers.set(
+		"Strict-Transport-Security",
+		"max-age=31536000; includeSubDomains; preload",
+	);
 
 	// Referrer policy
 	headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -70,7 +84,7 @@ app.get("/authorize", async (c) => {
 				clientIP,
 				c.req.raw,
 				0,
-				0
+				0,
 			);
 			return addSecurityHeaders(rateLimitResponse);
 		}
@@ -86,22 +100,32 @@ app.get("/authorize", async (c) => {
 			"invalid_oauth_request",
 			"warning",
 			c.req.raw,
-			{ reason: "missing_client_id" }
+			{ reason: "missing_client_id" },
 		);
 		return addSecurityHeaders(c.text("Invalid request", 400));
 	}
 
 	// Validate required OAuth environment variables
 	if (!c.env.COOKIE_ENCRYPTION_KEY || !c.env.OAUTH_KV) {
-		return addSecurityHeaders(c.text("OAuth not configured - missing COOKIE_ENCRYPTION_KEY or OAUTH_KV", 500));
+		return addSecurityHeaders(
+			c.text(
+				"OAuth not configured - missing COOKIE_ENCRYPTION_KEY or OAUTH_KV",
+				500,
+			),
+		);
 	}
 
 	// Check if client is already approved
-	if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
+	if (
+		await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)
+	) {
 		// Skip approval dialog but still create secure state and bind to session
 		const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
-		const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
-		const response = await redirectToGoogle(c.req.raw, c.env, stateToken, { "Set-Cookie": sessionBindingCookie });
+		const { setCookie: sessionBindingCookie } =
+			await bindStateToSession(stateToken);
+		const response = await redirectToGoogle(c.req.raw, c.env, stateToken, {
+			"Set-Cookie": sessionBindingCookie,
+		});
 		return addSecurityHeaders(response);
 	}
 
@@ -112,7 +136,8 @@ app.get("/authorize", async (c) => {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		csrfToken,
 		server: {
-			description: "Access government contracting data, grants, opportunities, and vendor intelligence through the Tango API.",
+			description:
+				"Access government contracting data, grants, opportunities, and vendor intelligence through the Tango API.",
 			name: "Tango MCP Server",
 		},
 		setCookie,
@@ -130,14 +155,17 @@ app.post("/authorize", async (c) => {
 		// Apply rate limiting
 		try {
 			const rateLimiters = createRateLimiters(c.env);
-			const rateLimitResponse = await applyRateLimit(rateLimiters.auth, clientIP);
+			const rateLimitResponse = await applyRateLimit(
+				rateLimiters.auth,
+				clientIP,
+			);
 			if (rateLimitResponse) {
 				await auditLogger.logRateLimitViolation(
 					"auth_endpoint",
 					clientIP,
 					c.req.raw,
 					0,
-					0
+					0,
 				);
 				return addSecurityHeaders(rateLimitResponse);
 			}
@@ -147,7 +175,12 @@ app.post("/authorize", async (c) => {
 
 		// Validate required OAuth environment variables
 		if (!c.env.COOKIE_ENCRYPTION_KEY || !c.env.OAUTH_KV) {
-			return addSecurityHeaders(c.text("OAuth not configured - missing COOKIE_ENCRYPTION_KEY or OAUTH_KV", 500));
+			return addSecurityHeaders(
+				c.text(
+					"OAuth not configured - missing COOKIE_ENCRYPTION_KEY or OAUTH_KV",
+					500,
+				),
+			);
 		}
 
 		// Read form data once
@@ -186,15 +219,24 @@ app.post("/authorize", async (c) => {
 		);
 
 		// Create OAuth state and bind it to this user's session
-		const { stateToken } = await createOAuthState(state.oauthReqInfo, c.env.OAUTH_KV);
-		const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
+		const { stateToken } = await createOAuthState(
+			state.oauthReqInfo,
+			c.env.OAUTH_KV,
+		);
+		const { setCookie: sessionBindingCookie } =
+			await bindStateToSession(stateToken);
 
 		// Set both cookies: approved client list + session binding
 		const headers = new Headers();
 		headers.append("Set-Cookie", approvedClientCookie);
 		headers.append("Set-Cookie", sessionBindingCookie);
 
-		const response = await redirectToGoogle(c.req.raw, c.env, stateToken, Object.fromEntries(headers));
+		const response = await redirectToGoogle(
+			c.req.raw,
+			c.env,
+			stateToken,
+			Object.fromEntries(headers),
+		);
 		return addSecurityHeaders(response);
 	} catch (error: any) {
 		console.error("POST /authorize error:", error);
@@ -202,7 +244,9 @@ app.post("/authorize", async (c) => {
 			return addSecurityHeaders(error.toResponse());
 		}
 		// Unexpected non-OAuth error
-		return addSecurityHeaders(c.text(`Internal server error: ${error.message}`, 500));
+		return addSecurityHeaders(
+			c.text(`Internal server error: ${error.message}`, 500),
+		);
 	}
 });
 
@@ -262,7 +306,7 @@ app.get("/callback", async (c) => {
 				clientIP,
 				c.req.raw,
 				0,
-				0
+				0,
 			);
 			return addSecurityHeaders(rateLimitResponse);
 		}
@@ -271,8 +315,17 @@ app.get("/callback", async (c) => {
 	}
 
 	// Validate required OAuth environment variables
-	if (!c.env.OAUTH_KV || !c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
-		return addSecurityHeaders(c.text("OAuth not configured - missing required environment variables", 500));
+	if (
+		!c.env.OAUTH_KV ||
+		!c.env.GOOGLE_CLIENT_ID ||
+		!c.env.GOOGLE_CLIENT_SECRET
+	) {
+		return addSecurityHeaders(
+			c.text(
+				"OAuth not configured - missing required environment variables",
+				500,
+			),
+		);
 	}
 
 	// Validate OAuth state with session binding
@@ -287,7 +340,7 @@ app.get("/callback", async (c) => {
 	} catch (error: any) {
 		await auditLogger.logOAuthStateFailure(
 			error instanceof OAuthError ? error.message : "Unknown error",
-			c.req.raw
+			c.req.raw,
 		);
 		if (error instanceof OAuthError) {
 			return addSecurityHeaders(error.toResponse());
@@ -301,7 +354,7 @@ app.get("/callback", async (c) => {
 			"invalid_oauth_callback",
 			"warning",
 			c.req.raw,
-			{ reason: "missing_client_id" }
+			{ reason: "missing_client_id" },
 		);
 		return addSecurityHeaders(c.text("Invalid OAuth request data", 400));
 	}
@@ -313,7 +366,7 @@ app.get("/callback", async (c) => {
 			"invalid_oauth_callback",
 			"warning",
 			c.req.raw,
-			{ reason: "missing_code" }
+			{ reason: "missing_code" },
 		);
 		return addSecurityHeaders(c.text("Missing code", 400));
 	}
@@ -327,20 +380,35 @@ app.get("/callback", async (c) => {
 		upstreamUrl: "https://accounts.google.com/o/oauth2/token",
 	});
 	if (googleErrResponse) {
-		await auditLogger.logOAuthCallback(false, undefined, c.req.raw, "Failed to exchange code for token");
+		await auditLogger.logOAuthCallback(
+			false,
+			undefined,
+			c.req.raw,
+			"Failed to exchange code for token",
+		);
 		return addSecurityHeaders(googleErrResponse);
 	}
 
 	// Fetch the user info from Google
-	const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-		headers: {
-			Authorization: `Bearer ${accessToken}`,
+	const userResponse = await fetch(
+		"https://www.googleapis.com/oauth2/v2/userinfo",
+		{
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
 		},
-	});
+	);
 	if (!userResponse.ok) {
 		const errorText = await userResponse.text();
-		await auditLogger.logOAuthCallback(false, undefined, c.req.raw, `Failed to fetch user info: ${errorText}`);
-		return addSecurityHeaders(c.text(`Failed to fetch user info: ${errorText}`, 500));
+		await auditLogger.logOAuthCallback(
+			false,
+			undefined,
+			c.req.raw,
+			`Failed to fetch user info: ${errorText}`,
+		);
+		return addSecurityHeaders(
+			c.text(`Failed to fetch user info: ${errorText}`, 500),
+		);
 	}
 
 	const { id, name, email } = (await userResponse.json()) as {

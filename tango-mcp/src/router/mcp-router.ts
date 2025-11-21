@@ -62,7 +62,7 @@ interface MutableExecutionContext {
  * ```
  */
 function hasMcpToken(request: Request): boolean {
-	const token = request.headers.get('x-mcp-access-token');
+	const token = request.headers.get("x-mcp-access-token");
 	return token !== null && token.length > 0;
 }
 
@@ -105,26 +105,26 @@ async function handleMcpTokenRoute(
 	request: Request,
 	env: Env,
 	ctx: ExecutionContext,
-	path: string
+	path: string,
 ): Promise<Response> {
-	const mcpToken = request.headers.get('x-mcp-access-token');
+	const mcpToken = request.headers.get("x-mcp-access-token");
 
 	if (!mcpToken) {
 		// This should never happen because hasMcpToken() checks first,
 		// but we validate again for safety
 		return new Response(
 			JSON.stringify({
-				error: 'Authentication required',
-				message: 'Missing x-mcp-access-token header'
+				error: "Authentication required",
+				message: "Missing x-mcp-access-token header",
 			}),
 			{
 				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			}
+				headers: { "Content-Type": "application/json" },
+			},
 		);
 	}
 
-	console.log('[MCP Router] MCP token authentication - bypassing OAuth');
+	console.log("[MCP Router] MCP token authentication - bypassing OAuth");
 
 	// Inject MCP token into props for Agent SDK
 	// The Agent SDK's serve() handlers will read ctx.props
@@ -133,14 +133,15 @@ async function handleMcpTokenRoute(
 	const mutableCtx = ctx as MutableExecutionContext;
 	mutableCtx.props = {
 		mcpAccessToken: mcpToken,
-		authMethod: 'mcp-token'
+		authMethod: "mcp-token",
 	};
 
 	// Select correct Agent SDK handler based on path
 	// These handlers are the same ones configured in OAuth Provider's apiHandlers
-	const handler = path === '/sse'
-		? MCPServerAgent.serveSSE('/sse')
-		: MCPServerAgent.serve('/mcp');
+	const handler =
+		path === "/sse"
+			? MCPServerAgent.serveSSE("/sse")
+			: MCPServerAgent.serve("/mcp");
 
 	// Call Agent SDK handler directly (bypassing OAuth Provider)
 	// Flow after this:
@@ -185,9 +186,9 @@ async function handleOAuthRoute(
 	request: Request,
 	env: Env,
 	ctx: ExecutionContext,
-	oauthProvider: OAuthProvider
+	oauthProvider: OAuthProvider,
 ): Promise<Response> {
-	console.log('[MCP Router] OAuth authentication');
+	console.log("[MCP Router] OAuth authentication");
 
 	// Pass through to OAuth Provider
 	// OAuth Provider handles:
@@ -229,17 +230,19 @@ async function handleOAuthRoute(
  * export default createMcpRouter(oauthProvider);
  * ```
  */
-export function createMcpRouter(oauthProvider: OAuthProvider): ExportedHandler<Env> {
+export function createMcpRouter(
+	oauthProvider: OAuthProvider,
+): ExportedHandler<Env> {
 	return {
 		async fetch(
 			request: Request,
 			env: Env,
-			ctx: ExecutionContext
+			ctx: ExecutionContext,
 		): Promise<Response> {
 			const url = new URL(request.url);
 
 			// Check if this is an MCP endpoint (/sse or /mcp)
-			const isMcpEndpoint = url.pathname === '/sse' || url.pathname === '/mcp';
+			const isMcpEndpoint = url.pathname === "/sse" || url.pathname === "/mcp";
 
 			// Routing Decision:
 			// MCP endpoint + MCP token → Direct to Agent SDK (bypass OAuth)
@@ -258,6 +261,6 @@ export function createMcpRouter(oauthProvider: OAuthProvider): ExportedHandler<E
 			// - MCP endpoints with OAuth credentials (no MCP token)
 			// - Health check and static routes (via defaultHandler)
 			return handleOAuthRoute(request, env, ctx, oauthProvider);
-		}
+		},
 	};
 }

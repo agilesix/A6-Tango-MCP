@@ -88,7 +88,10 @@ export interface MCPTokenStats {
  * const tokens = await listTokensForUser("user@example.com", env);
  * console.log(`User has ${tokens.length} tokens`);
  */
-export async function listTokensForUser(userId: string, env: Env): Promise<MCPTokenListItem[]> {
+export async function listTokensForUser(
+	userId: string,
+	env: Env,
+): Promise<MCPTokenListItem[]> {
 	// Validate required KV namespace
 	if (!env.OAUTH_KV) {
 		throw new Error("OAUTH_KV namespace not configured");
@@ -281,7 +284,10 @@ export async function deleteToken(
  * const stats = await getTokenStats("user@example.com", env);
  * console.log(`Total tokens: ${stats.totalTokens}, Active: ${stats.activeTokens}`);
  */
-export async function getTokenStats(userId: string, env: Env): Promise<MCPTokenStats> {
+export async function getTokenStats(
+	userId: string,
+	env: Env,
+): Promise<MCPTokenStats> {
 	const tokens = await listTokensForUser(userId, env);
 
 	const stats: MCPTokenStats = {
@@ -298,7 +304,9 @@ export async function getTokenStats(userId: string, env: Env): Promise<MCPTokenS
 		.sort((a, b) => {
 			if (!a.lastUsedAt) return 1;
 			if (!b.lastUsedAt) return -1;
-			return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
+			return (
+				new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime()
+			);
 		});
 
 	if (sortedByLastUsed.length > 0 && sortedByLastUsed[0].lastUsedAt) {
@@ -327,7 +335,11 @@ export async function revokeAllUserTokens(
 ): Promise<{ success: boolean; revokedCount: number; errors: string[] }> {
 	// Validate required KV namespace
 	if (!env.OAUTH_KV) {
-		return { success: false, revokedCount: 0, errors: ["OAUTH_KV namespace not configured"] };
+		return {
+			success: false,
+			revokedCount: 0,
+			errors: ["OAUTH_KV namespace not configured"],
+		};
 	}
 
 	// 1. Load user's token list
@@ -421,7 +433,10 @@ export async function unrevokeToken(
  *   throw new Error("Unauthorized: Admin access required");
  * }
  */
-export function validateAdminAccess(email: string | undefined, requiredDomain: string): boolean {
+export function validateAdminAccess(
+	email: string | undefined,
+	requiredDomain: string,
+): boolean {
 	if (!email) return false;
 	return email.endsWith(`@${requiredDomain}`);
 }

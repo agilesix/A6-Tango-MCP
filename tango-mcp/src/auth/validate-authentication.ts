@@ -76,7 +76,11 @@ export async function validateAuthentication(
 	// Check MCP access token
 	if (props?.mcpAccessToken && env) {
 		// Validate the token using the full verification system
-		const validation = await verifyMcpAccessToken(props.mcpAccessToken, env, "unknown");
+		const validation = await verifyMcpAccessToken(
+			props.mcpAccessToken,
+			env,
+			"unknown",
+		);
 
 		if (!validation.valid) {
 			// Provide specific error message based on reason
@@ -88,7 +92,8 @@ export async function validateAuthentication(
 			};
 
 			const errorMessage =
-				errorMessages[validation.reason || "invalid"] || "Token validation failed.";
+				errorMessages[validation.reason || "invalid"] ||
+				"Token validation failed.";
 			throw new Error(`Unauthorized: ${errorMessage}`);
 		}
 
@@ -115,7 +120,9 @@ export async function validateAuthentication(
  * @param result - Authentication validation result
  * @returns Human-readable user identifier
  */
-export function getUserIdentifierFromAuth(result: AuthValidationResult): string {
+export function getUserIdentifierFromAuth(
+	result: AuthValidationResult,
+): string {
 	if (result.method === "oauth") {
 		return result.user.name || result.user.email || "OAuth User";
 	}
